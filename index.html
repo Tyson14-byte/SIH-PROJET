@@ -1,883 +1,1366 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ReconcileAI — Field-to-Schedule Reconciliation</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0f1117;--s1:#1a1d27;--s2:#232733;--border:#2e3344;
-  --t1:#e4e6f0;--t2:#8b8fa3;--t3:#5a5e72;
-  --blue:#3b82f6;--blue-h:#2563eb;
-  --green:#22c55e;--green-bg:rgba(34,197,94,.12);
-  --yellow:#eab308;--yellow-bg:rgba(234,179,8,.12);
-  --red:#ef4444;--red-bg:rgba(239,68,68,.12);
-  --orange:#f97316;
-  --r:8px;--shadow:0 2px 12px rgba(0,0,0,.4);
-}
-:root.light{
-  --bg:#f3f4f6;--s1:#ffffff;--s2:#e5e7eb;--border:#d1d5db;
-  --t1:#111827;--t2:#6b7280;--t3:#9ca3af;
-  --blue:#2563eb;--blue-h:#1d4ed8;
-  --green:#16a34a;--green-bg:rgba(22,163,74,.1);
-  --yellow:#ca8a04;--yellow-bg:rgba(202,138,4,.1);
-  --red:#dc2626;--red-bg:rgba(220,38,38,.1);
-  --orange:#ea580c;
-  --shadow:0 2px 12px rgba(0,0,0,.08);
-}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--t1);line-height:1.5;min-height:100vh;display:flex;transition:background .25s,color .25s}
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReconcileAI — Field-to-Schedule Reconciliation</title>
 
-/* ── Sidebar ── */
-.side{width:220px;background:var(--s1);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;z-index:10}
-.brand{padding:0 20px 28px;font-size:20px;font-weight:800;letter-spacing:-.5px}
-.brand b{color:var(--blue)}
-.side nav{flex:1}
-.side nav button{width:100%;text-align:left;padding:11px 20px;background:0;color:var(--t2);font-size:14px;display:flex;align-items:center;gap:10px;border:none;cursor:pointer;font-family:inherit;transition:background .12s,color .12s;border-left:3px solid transparent}
-.side nav button:hover{background:var(--s2);color:var(--t1)}
-.side nav button.on{background:rgba(59,130,246,.1);color:var(--blue);border-left-color:var(--blue);font-weight:600}
-.side nav .ic{width:18px;text-align:center;font-size:15px}
-.side-foot{padding:14px 20px;border-top:1px solid var(--border);font-size:12px;color:var(--t3)}
-.side-foot select{width:100%;margin-top:4px;padding:5px 6px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:var(--r);font-size:12px}
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap"
+        rel="stylesheet">
 
-/* ── Main ── */
-.main{margin-left:220px;flex:1;padding:24px 32px;min-height:100vh}
-.view{display:none}.view.on{display:block}
+    <!-- Tailwind CSS & Lucide Icons & Chart.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-/* ── Page Header ── */
-.ph{margin-bottom:24px}
-.ph h1{font-size:22px;font-weight:700;margin-bottom:2px}
-.ph p{color:var(--t2);font-size:14px}
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        rajdhani: ['Rajdhani', 'sans-serif'],
+                        inter: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        royalBlack: '#0A0A0A',
+                        pureWhite: '#FFFFFF',
+                        softWhite: '#F5F5F5',
+                        amberAccent: '#F2A93B',
+                        greenAccent: '#3FB27F',
+                        redAccent: '#E5484D',
+                        blueAccent: '#5B9BD1',
+                    }
+                }
+            }
+        }
+    </script>
 
-/* ── Cards / Grid ── */
-.g{display:grid;gap:16px}
-.g2{grid-template-columns:1fr 1fr}
-.g3{grid-template-columns:repeat(3,1fr)}
-.g4{grid-template-columns:repeat(4,1fr)}
-.c{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:20px}
-.ct{font-size:11px;text-transform:uppercase;color:var(--t2);letter-spacing:.6px;margin-bottom:6px}
-.cv{font-size:28px;font-weight:700}
-.cs{font-size:13px;color:var(--t2);margin-top:4px}
+    <style>
+        :root {
+            --bg-primary: #0A0A0A;
+            --bg-secondary: #111318;
+            --bg-tertiary: #161A21;
+            --bg-card: #12151B;
+            --border-primary: #1E222B;
+            --border-secondary: #2A2F3A;
+            --text-primary: #E7ECF1;
+            --text-secondary: #8993A3;
+            --text-muted: #5F6A7A;
+            --sidebar-bg: #0C0E12;
+            --input-bg: #0D0F14;
+            --amber: #F2A93B;
+            --green: #3FB27F;
+            --red: #E5484D;
+            --blue: #5B9BD1;
+        }
 
-/* ── Badges ── */
-.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-.b-high{background:var(--green-bg);color:var(--green)}
-.b-med{background:var(--yellow-bg);color:var(--yellow)}
-.b-low{background:var(--red-bg);color:var(--red)}
-.b-done{background:var(--green-bg);color:var(--green)}
-.b-prog{background:var(--yellow-bg);color:var(--yellow)}
-.b-delay{background:var(--red-bg);color:var(--red)}
-.b-wait{background:rgba(139,143,163,.12);color:var(--t2)}
+        .light {
+            --bg-primary: #F5F5F5;
+            --bg-secondary: #FFFFFF;
+            --bg-tertiary: #EBEBEB;
+            --bg-card: #FFFFFF;
+            --border-primary: #E0E0E0;
+            --border-secondary: #D0D0D0;
+            --text-primary: #1A1A1A;
+            --text-secondary: #555555;
+            --text-muted: #888888;
+            --sidebar-bg: #FFFFFF;
+            --input-bg: #F0F0F0;
+        }
 
-/* ── Table ── */
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:10px 14px;background:var(--s2);color:var(--t2);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
-td{padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
-tr:hover td{background:rgba(59,130,246,.03)}
+        * {
+            transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease;
+        }
 
-/* ── Buttons ── */
-.btn{padding:8px 16px;border-radius:var(--r);font-size:13px;font-weight:600;border:none;cursor:pointer;font-family:inherit;transition:background .12s}
-.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:var(--blue-h)}
-.btn-g{background:var(--green);color:#fff}.btn-g:hover{background:#16a34a}
-.btn-r{background:var(--red);color:#fff}.btn-r:hover{background:#dc2626}
-.btn-o{background:0;color:var(--t2);border:1px solid var(--border)}.btn-o:hover{background:var(--s2);color:var(--t1)}
-.btn-sm{padding:5px 12px;font-size:12px}
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
 
-/* ── Form ── */
-.fg{margin-bottom:16px}
-.fg label{display:block;font-size:13px;font-weight:500;margin-bottom:5px;color:var(--t2)}
-textarea,input[type=text]{width:100%;padding:10px 12px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:var(--r);font-size:14px;font-family:inherit;resize:vertical}
-textarea:focus,input:focus{outline:0;border-color:var(--blue)}
+        .dark-bg {
+            background-color: var(--bg-primary);
+            background-image: radial-gradient(circle at 1px 1px, rgba(242, 169, 59, 0.04) 1px, transparent 0);
+            background-size: 20px 20px;
+        }
 
-/* ── Score Bar ── */
-.sr{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.sl{font-size:12px;color:var(--t2);width:140px;flex-shrink:0}
-.sb{flex:1;height:7px;background:var(--s2);border-radius:4px;overflow:hidden}
-.sbf{height:100%;border-radius:4px;transition:width .4s}
-.sv{font-size:12px;font-weight:600;width:38px;text-align:right}
+        .light-bg {
+            background-color: var(--bg-primary);
+            background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.04) 1px, transparent 0);
+            background-size: 20px 20px;
+        }
 
-/* ── Progress Bar ── */
-.pb{height:6px;background:var(--s2);border-radius:3px;overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-right:6px}
-.pbf{height:100%;border-radius:3px}
+        ::selection {
+            background: rgba(242, 169, 59, 0.35);
+        }
 
-/* ── Timeline ── */
-.tl{position:relative;padding-left:28px}
-.tl::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border)}
-.te{position:relative;padding-bottom:20px}
-.te:last-child{padding-bottom:0}
-.td{position:absolute;left:-22px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--blue);border:2px solid var(--bg)}
-.te .tm{font-size:11px;color:var(--t3)}
-.te .ta{font-size:14px;font-weight:600;margin:2px 0}
-.te .tx{font-size:13px;color:var(--t2)}
+        /* Fixed sidebar - never scrolls */
+        #sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
 
-/* ── Match Card ── */
-.mc{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;transition:border-color .12s}
-.mc.sel{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
-.mch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
-.mcr{font-size:11px;color:var(--t3)}
-.mca{font-weight:600;font-size:15px}
-.mcs{font-size:22px;font-weight:700}
-.mcd{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;margin-bottom:10px;font-size:12px}
-.mcd dt{color:var(--t3)}
-.mcd dd{font-weight:500}
-.mcf{display:flex;gap:8px;justify-content:flex-end}
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-primary);
+        }
 
-/* ── Review Card ── */
-.rc{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px}
-.rch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
-.rctxt{background:var(--s2);padding:12px;border-radius:var(--r);font-size:14px;border-left:3px solid var(--blue);margin-bottom:14px}
+        .card-hover:hover {
+            background-color: var(--bg-tertiary);
+        }
 
-/* ── Extract Panel ── */
-.eg{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px}
-.ei{padding:4px 0}
-.el{font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px}
-.ev{font-size:13px;font-weight:500}
+        .input-field {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-primary);
+            color: var(--text-primary);
+        }
 
-/* ── Theme Toggle ── */
-.theme-toggle{display:flex;align-items:center;gap:8px;padding:0 20px;margin-top:8px;cursor:pointer;user-select:none;font-size:13px;color:var(--t2);transition:color .12s}
-.theme-toggle:hover{color:var(--t1)}
-.theme-track{width:36px;height:20px;background:var(--s2);border:1px solid var(--border);border-radius:10px;position:relative;transition:background .25s,border-color .25s;flex-shrink:0}
-.theme-thumb{width:16px;height:16px;background:var(--t2);border-radius:50%;position:absolute;top:1px;left:1px;transition:transform .25s,background .25s}
-:root.light .theme-thumb{transform:translateX(16px);background:var(--blue)}
+        .input-field:focus {
+            border-color: var(--amber);
+            outline: none;
+        }
 
-/* ── Toast ── */
-.toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:var(--r);font-size:13px;font-weight:600;z-index:200;transform:translateX(120%);transition:transform .25s;box-shadow:var(--shadow)}
-.toast.show{transform:translateX(0)}
-.toast-ok{background:var(--green);color:#fff}
-.toast-err{background:var(--red);color:#fff}
-.toast-info{background:var(--blue);color:#fff}
+        .btn-primary {
+            background-color: var(--amber);
+            color: #1A1104;
+        }
 
-/* ── Empty ── */
-.empty{text-align:center;padding:48px 20px;color:var(--t3)}
-.empty .ei{font-size:40px;margin-bottom:8px}
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
 
-/* ── Processing ── */
-.proc{display:flex;align-items:center;gap:12px;padding:16px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r);margin:16px 0}
-.spin{width:18px;height:18px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
+        .btn-outline {
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+        }
 
-/* ── Responsive ── */
-@media(max-width:900px){
-  .side{width:56px}.side .brand span,.side nav button span:not(.ic),.side-foot select{display:none}
-  .brand{padding:0 0 28px;text-align:center;font-size:16px}
-  .side nav button{justify-content:center;padding:12px}
-  .main{margin-left:56px;padding:16px}
-  .g4,.g3{grid-template-columns:1fr 1fr}
-  .g2{grid-template-columns:1fr}
-}
-</style>
+        .btn-outline:hover {
+            color: var(--text-primary);
+            border-color: var(--border-secondary);
+        }
+
+        .text-dim {
+            color: var(--text-secondary);
+        }
+
+        .text-muted {
+            color: var(--text-muted);
+        }
+
+        .border-custom {
+            border-color: var(--border-primary);
+        }
+
+        .bg-sidebar {
+            background-color: var(--sidebar-bg);
+        }
+
+        .bg-input {
+            background-color: var(--input-bg);
+        }
+
+        /* Reject reason modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-box {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 480px;
+            overflow: hidden;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 200;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease, fadeOut 0.4s ease 2.6s forwards;
+            max-width: 360px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; pointer-events: none; }
+        }
+    </style>
 </head>
-<body>
 
-<aside class="side">
-  <div class="brand"><span>Reconcile</span><b>AI</b></div>
-  <nav id="nav">
-    <button class="on" data-v="capture"><span class="ic">📝</span><span>Capture</span></button>
-    <button data-v="review"><span class="ic">👁️</span><span>Review Queue</span></button>
-    <button data-v="schedule"><span class="ic">📋</span><span>Schedule</span></button>
-    <button data-v="archive"><span class="ic">📊</span><span>Archive</span></button>
-  </nav>
-  <div class="theme-toggle" onclick="toggleTheme()" role="button" tabindex="0" aria-label="Toggle dark/light theme">
-    <div class="theme-track"><div class="theme-thumb"></div></div>
-    <span id="themeLabel">Light mode</span>
-  </div>
-  <div class="side-foot">
-    Project
-    <select id="projSel" aria-label="Project"><option>Oil India – Phase 2</option></select>
-  </div>
-</aside>
+<body class="dark dark-bg min-h-screen">
 
-<main class="main">
+    <div class="flex min-h-screen">
+        <!-- Sidebar (STICKY - never scrolls) -->
+        <aside id="sidebar"
+            class="w-56 shrink-0 hidden md:flex flex-col bg-sidebar border-r border-custom sticky top-0 h-screen">
+            <div class="px-5 py-5 flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                    <i data-lucide="zap" class="text-amberAccent w-4 h-4"></i>
+                </div>
+                <div>
+                    <div class="font-rajdhani font-bold text-white text-sm tracking-wider">RECONCILE-AI</div>
+                    <div class="text-[9px] text-muted tracking-widest uppercase">Field · Schedule · Sync</div>
+                </div>
+            </div>
 
-<!-- ════════════ CAPTURE ════════════ -->
-<section id="v-capture" class="view on">
-  <div class="ph">
-    <h1>Capture Field Report</h1>
-    <p>Enter an observation from the field — AI extracts structure, matches the schedule, and routes for review</p>
-  </div>
-  <div class="g g2">
-    <div class="c">
-      <div class="fg">
-        <label for="inp">Field Report Text</label>
-        <textarea id="inp" rows="7" placeholder="Describe what happened: activity, location, equipment, status…"></textarea>
-      </div>
-      <div class="fg">
-        <label for="rptName">Reporter</label>
-        <input type="text" id="rptName" value="Rajesh Kumar">
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-p" onclick="doSubmit()">Submit &amp; Process</button>
-        <button class="btn btn-o" onclick="doVoice()">🎤 Voice</button>
-        <span id="demoSelect" style="margin-left:auto"></span>
-      </div>
-      <!-- Quick-load demo buttons -->
-      <div style="margin-top:14px;padding:12px;background:var(--s2);border-radius:var(--r)">
-        <div style="font-size:11px;text-transform:uppercase;color:var(--t3);letter-spacing:.5px;margin-bottom:8px">Quick Demo — 3 Cases</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-o btn-sm" onclick="loadDemo(0)" style="border-color:var(--green)">✓ Clean Match</button>
-          <button class="btn btn-o btn-sm" onclick="loadDemo(1)" style="border-color:var(--yellow)">? Ambiguous</button>
-          <button class="btn btn-o btn-sm" onclick="loadDemo(2)" style="border-color:var(--red)">✗ No Match</button>
+            <!-- Project Info -->
+            <div class="px-5 pb-3 mb-2 border-b border-custom">
+                <div class="text-[9px] uppercase tracking-widest text-muted mb-1">Active Project</div>
+                <div class="text-xs font-semibold text-white">Duliajan Development</div>
+                <div class="text-[10px] text-muted">Assam · OIL/24/DDP-01</div>
+            </div>
+
+            <nav class="px-3 space-y-0.5 mt-1 flex-1">
+                <div class="text-[9px] uppercase tracking-widest text-muted px-3 mb-1">Workspace</div>
+                <button onclick="navigate('capture')" id="nav-capture"
+                    class="nav-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors text-[#8993A3] hover:text-white hover:bg-white/5">
+                    <i data-lucide="pen-line" class="w-4 h-4"></i> Capture Report
+                </button>
+                <button onclick="navigate('review')" id="nav-review"
+                    class="nav-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors text-[#8993A3] hover:text-white hover:bg-white/5">
+                    <i data-lucide="list-checks" class="w-4 h-4"></i> Review Queue
+                    <span id="review-badge"
+                        class="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amberAccent">0</span>
+                </button>
+                <button onclick="navigate('schedule')" id="nav-schedule"
+                    class="nav-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors text-[#8993A3] hover:text-white hover:bg-white/5">
+                    <i data-lucide="calendar-clock" class="w-4 h-4"></i> Schedule Control
+                </button>
+                <button onclick="navigate('archive')" id="nav-archive"
+                    class="nav-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors text-[#8993A3] hover:text-white hover:bg-white/5">
+                    <i data-lucide="archive" class="w-4 h-4"></i> Archive
+                </button>
+            </nav>
+
+            <div class="px-5 py-4 border-t border-custom">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-[10px] font-bold text-amberAccent">AS</div>
+                    <div>
+                        <div class="text-[11px] font-medium text-white">Ananya Sharma</div>
+                        <div class="text-[9px] text-muted">Project Controls</div>
+                    </div>
+                    <div class="ml-auto w-2 h-2 rounded-full bg-greenAccent"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 min-w-0 flex flex-col">
+            <!-- Top Header -->
+            <header class="flex items-center justify-between px-4 md:px-8 py-4 border-b border-custom bg-sidebar/80 backdrop-blur sticky top-0 z-30">
+                <div class="flex md:hidden items-center gap-2">
+                    <i data-lucide="zap" class="text-amberAccent w-5 h-5"></i>
+                    <span class="font-rajdhani font-bold text-white">RECONCILE-AI</span>
+                </div>
+                <div class="hidden md:flex items-center gap-3">
+                    <span id="page-label" class="text-[10px] uppercase tracking-widest text-muted">STRUCTURED UPDATES</span>
+                    <span class="text-muted">·</span>
+                    <span id="page-sublabel" class="text-[10px] uppercase tracking-widest text-muted">PENDING ACTION</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="hidden md:flex items-center gap-1.5 text-[10px] text-muted bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20">
+                        <div class="w-1.5 h-1.5 rounded-full bg-greenAccent animate-pulse"></div>
+                        Site link stable · 08:14 IST
+                    </div>
+                    <button onclick="toggleTheme()"
+                        class="p-2 rounded-lg border border-custom text-muted hover:text-white transition-colors">
+                        <i id="theme-icon" data-lucide="sun" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- View Containers -->
+            <main class="p-4 md:p-8 flex-1 overflow-y-auto">
+
+                <!-- ===== CAPTURE VIEW ===== -->
+                <section id="view-capture" class="space-y-5">
+                    <div>
+                        <h1 class="font-rajdhani text-2xl font-bold">Capture Report</h1>
+                        <p class="text-dim text-sm mt-0.5">Describe field progress in natural language — the NLP parser detects assets, activities, and progress.</p>
+                    </div>
+
+                    <div class="card rounded-xl p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-[10px] uppercase tracking-wider text-muted">Report Input</label>
+                            <span class="text-[10px] text-amberAccent font-mono">Live Natural Language Parser</span>
+                        </div>
+                        <textarea id="report-input-text" rows="4"
+                            class="w-full rounded-lg p-3 text-sm input-field outline-none resize-none"
+                            placeholder="e.g. Spool erected at Section B, Grid Line 4-5. Flange bolts torqued to 280 Nm."></textarea>
+
+                        <div class="flex items-center justify-between mt-3 flex-wrap gap-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-muted">Demo presets:</span>
+                                <button onclick="setSample(1)" class="text-xs px-2.5 py-1 rounded border border-custom text-dim hover:text-white transition-colors">Case 1 · Clean</button>
+                                <button onclick="setSample(2)" class="text-xs px-2.5 py-1 rounded border border-custom text-dim hover:text-white transition-colors">Case 2 · Ambiguous</button>
+                                <button onclick="setSample(3)" class="text-xs px-2.5 py-1 rounded border border-custom text-dim hover:text-white transition-colors">Case 3 · No Match</button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="handleAnalyzeReport()" class="btn-primary flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg">
+                                    <i data-lucide="sparkles" class="w-4 h-4"></i> Analyze Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="latest-report-results" class="hidden"></div>
+                </section>
+
+                <!-- ===== REVIEW QUEUE VIEW ===== -->
+                <section id="view-review" class="space-y-4 hidden">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest text-amberAccent mb-1">HUMAN IN THE LOOP</div>
+                            <h1 class="font-rajdhani text-2xl font-bold">Review before it <span class="text-amberAccent">moves</span>.</h1>
+                            <p class="text-dim text-sm mt-0.5">A clear, accountable handoff from field language to the project schedule. Confirm what is true, return what needs another look.</p>
+                        </div>
+                        <button onclick="renderReviewQueue()" class="btn-outline flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh queue
+                        </button>
+                    </div>
+
+                    <!-- Review Stats -->
+                    <div class="grid grid-cols-3 gap-3" id="review-stats"></div>
+
+                    <!-- Priority Filters -->
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] uppercase tracking-wider text-muted">Priority</span>
+                            <button onclick="filterReview('all')" id="filter-all" class="text-xs px-2.5 py-1 rounded border border-custom bg-white/10 text-white">All</button>
+                            <button onclick="filterReview('critical')" id="filter-critical" class="text-xs px-2.5 py-1 rounded border border-custom text-dim">Critical</button>
+                            <button onclick="filterReview('watch')" id="filter-watch" class="text-xs px-2.5 py-1 rounded border border-custom text-dim">Watch</button>
+                            <button onclick="filterReview('routine')" id="filter-routine" class="text-xs px-2.5 py-1 rounded border border-custom text-dim">Routine</button>
+                        </div>
+                        <span id="review-count-label" class="text-[10px] font-mono text-muted"></span>
+                    </div>
+
+                    <div id="review-list" class="space-y-3"></div>
+                </section>
+
+                <!-- ===== SCHEDULE VIEW ===== -->
+                <section id="view-schedule" class="space-y-4 hidden">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest text-muted mb-1">SCHEDULE CONTROL</div>
+                            <h1 class="font-rajdhani text-2xl font-bold">Project Schedule</h1>
+                            <p id="schedule-subtitle" class="text-dim text-sm mt-0.5">Master schedule control view</p>
+                        </div>
+                    </div>
+
+                    <div id="discipline-filters" class="flex gap-1.5 flex-wrap"></div>
+
+                    <div class="card rounded-xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-[10px] uppercase tracking-wider text-muted border-b border-custom bg-sidebar">
+                                    <tr>
+                                        <th class="px-4 py-3">ID</th>
+                                        <th class="px-4 py-3">Activity</th>
+                                        <th class="px-4 py-3">Asset</th>
+                                        <th class="px-4 py-3">Location</th>
+                                        <th class="px-4 py-3 w-32">Progress</th>
+                                        <th class="px-4 py-3">Status</th>
+                                        <th class="px-4 py-3">Conf.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="schedule-tbody" class="divide-y divide-[var(--border-primary)]"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ===== ARCHIVE VIEW ===== -->
+                <section id="view-archive" class="space-y-4 hidden">
+                    <div>
+                        <div class="text-[10px] uppercase tracking-widest text-muted mb-1">HISTORICAL RECORD · DULIAJAN DEVELOPMENT</div>
+                        <h1 class="font-rajdhani text-2xl font-bold">Report Archive</h1>
+                        <p class="text-dim text-sm mt-0.5">A searchable history of field observations, supervisor decisions, and the schedule signals they created.</p>
+                    </div>
+
+                    <!-- Archive Stats -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="archive-stats"></div>
+
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] uppercase tracking-wider text-muted">REPORT LEDGER · ALL TIME</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input id="archive-search" type="text" oninput="renderArchive()" placeholder="Search reports, areas, people..."
+                                class="w-64 px-3 py-1.5 text-xs rounded-lg input-field outline-none" />
+                            <div class="flex gap-1">
+                                <button onclick="filterArchive('all')" class="filter-archive-btn text-[10px] px-2 py-1 rounded border border-custom bg-white/10 text-white">ALL</button>
+                                <button onclick="filterArchive('pending')" class="filter-archive-btn text-[10px] px-2 py-1 rounded border border-custom text-dim">PENDING</button>
+                                <button onclick="filterArchive('confirmed')" class="filter-archive-btn text-[10px] px-2 py-1 rounded border border-custom text-dim">CONFIRMED</button>
+                                <button onclick="filterArchive('rejected')" class="filter-archive-btn text-[10px] px-2 py-1 rounded border border-custom text-dim">REJECTED</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card rounded-xl overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-[10px] uppercase tracking-wider text-muted border-b border-custom bg-sidebar">
+                                <tr>
+                                    <th class="px-4 py-3">Report</th>
+                                    <th class="px-4 py-3">Structured Activity</th>
+                                    <th class="px-4 py-3">Location</th>
+                                    <th class="px-4 py-3">Submitted By</th>
+                                    <th class="px-4 py-3">Progress</th>
+                                    <th class="px-4 py-3">Decision</th>
+                                </tr>
+                            </thead>
+                            <tbody id="archive-tbody" class="divide-y divide-[var(--border-primary)]"></tbody>
+                        </table>
+                    </div>
+                    <div class="text-right text-[10px] text-muted">↗ Select a record for full trace</div>
+                </section>
+            </main>
         </div>
-      </div>
     </div>
-    <div>
-      <div id="procBox" class="proc" style="display:none">
-        <div class="spin"></div>
-        <div><div style="font-weight:600">Processing with AI…</div><div style="font-size:12px;color:var(--t2)">Extracting → Embedding → Matching → Scoring</div></div>
-      </div>
-      <div id="extCard" class="c" style="display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div class="ct" style="margin:0">🤖 Extracted Event</div>
-          <span id="confBadge"></span>
+
+    <!-- ===== REJECT REASON MODAL ===== -->
+    <div id="reject-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="p-5 border-b border-custom">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-rajdhani font-bold text-lg text-white">Return This Report</h3>
+                    <button onclick="closeRejectModal()" class="text-muted hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <p class="text-xs text-dim mt-1">Provide a clear reason so the field supervisor can correct and re-submit.</p>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="text-[10px] uppercase tracking-wider text-muted mb-1.5 block">Reason for returning</label>
+                    <textarea id="reject-reason-input" rows="3" class="w-full rounded-lg p-3 text-sm input-field outline-none resize-none"
+                        placeholder="e.g. Activity matched incorrectly — the report describes Unit 3 work, not Unit 2."></textarea>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-dim">
+                    <i data-lucide="info" class="w-3.5 h-3.5 text-amberAccent"></i>
+                    <span>This reason will be recorded in the audit trail and sent back to the supervisor.</span>
+                </div>
+            </div>
+            <div class="p-5 border-t border-custom flex items-center justify-end gap-3">
+                <button onclick="closeRejectModal()" class="btn-outline text-xs px-4 py-2 rounded-lg">Cancel</button>
+                <button onclick="confirmReject()" id="reject-confirm-btn" class="bg-redAccent text-white text-xs font-semibold px-4 py-2 rounded-lg opacity-50 cursor-not-allowed" disabled>
+                    Return Report
+                </button>
+            </div>
         </div>
-        <div class="eg" id="extFields"></div>
-        <div id="confBar" style="margin-top:12px"></div>
-      </div>
-      <div id="matchCard" class="c" style="display:none;margin-top:12px">
-        <div class="ct" style="margin-bottom:10px">Best Schedule Match</div>
-        <div id="matchInfo"></div>
-        <div style="margin-top:10px;display:flex;gap:8px">
-          <button class="btn btn-p btn-sm" onclick="showView('review')">Open Review Queue →</button>
+    </div>
+
+    <!-- ===== CONFIRMATION MODAL ===== -->
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="p-5 border-b border-custom">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-rajdhani font-bold text-lg text-white">Confirm Rejection</h3>
+                    <button onclick="closeConfirmModal()" class="text-muted hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+            <div class="p-5 space-y-3">
+                <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-redAccent">
+                    <div class="font-semibold mb-1">You are about to reject this report</div>
+                    <p class="text-xs text-dim">Report <span id="confirm-report-id" class="font-mono text-amberAccent"></span> will be returned to the supervisor for correction.</p>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase tracking-wider text-muted mb-1">Reason to be recorded:</div>
+                    <div id="confirm-reason-display" class="text-sm text-dim p-3 rounded-lg bg-input border border-custom"></div>
+                </div>
+            </div>
+            <div class="p-5 border-t border-custom flex items-center justify-end gap-3">
+                <button onclick="closeConfirmModal()" class="btn-outline text-xs px-4 py-2 rounded-lg">Go Back</button>
+                <button onclick="executeReject()" class="bg-redAccent text-white text-xs font-semibold px-4 py-2 rounded-lg hover:opacity-90">
+                    <span class="flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Yes, Return It</span>
+                </button>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
-</section>
 
-<!-- ════════════ REVIEW QUEUE ════════════ -->
-<section id="v-review" class="view">
-  <div class="ph">
-    <h1>Planner Review Queue</h1>
-    <p>Reports needing human decision — medium confidence matches and unmatched items</p>
-  </div>
-  <div id="reviewList"></div>
-  <div id="reviewEmpty" class="empty" style="display:none">
-    <div class="ei">✅</div>
-    <p>All caught up — no reports pending review.</p>
-  </div>
-</section>
-
-<!-- ════════════ SCHEDULE ════════════ -->
-<section id="v-schedule" class="view">
-  <div class="ph">
-    <h1>Schedule Activities</h1>
-    <p>Mock Primavera L5/L6 schedule — 20 activities with status, progress, and match history</p>
-  </div>
-  <div class="c">
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <input type="text" id="schedSearch" placeholder="Search activities…" style="max-width:280px" oninput="renderSchedule()">
-      <select id="schedFilter" style="width:150px;padding:7px;background:var(--s2);border:1px solid var(--border);color:var(--t1);border-radius:var(--r);font-size:13px" onchange="renderSchedule()" aria-label="Filter discipline">
-        <option value="">All Disciplines</option>
-        <option>Piping</option><option>Civil</option><option>Mechanical</option><option>Electrical</option><option>Instrumentation</option>
-      </select>
-    </div>
-    <div class="tw"><table><thead><tr>
-      <th>WBS</th><th>ID</th><th>Activity</th><th>Discipline</th><th>Asset</th><th>Location</th><th>Status</th><th>Progress</th><th>End</th>
-    </tr></thead><tbody id="schedBody"></tbody></table></div>
-  </div>
-</section>
-
-<!-- ════════════ ARCHIVE ════════════ -->
-<section id="v-archive" class="view">
-  <div class="ph">
-    <h1>Archive &amp; Analytics</h1>
-    <p>Processed events, institutional memory, and performance metrics</p>
-  </div>
-  <div class="g g4" style="margin-bottom:20px" id="archStats"></div>
-  <div class="g g2" style="margin-bottom:20px">
-    <div class="c">
-      <div class="ct">Delays by Cause</div>
-      <div id="delayChart" style="margin-top:10px"></div>
-    </div>
-    <div class="c">
-      <div class="ct">Activity Type Distribution</div>
-      <div id="actChart" style="margin-top:10px"></div>
-    </div>
-  </div>
-  <div class="c">
-    <div class="ct" style="margin-bottom:10px">Processed Events History</div>
-    <div class="tw"><table><thead><tr>
-      <th>Time</th><th>Report</th><th>Extracted Activity</th><th>Matched To</th><th>Confidence</th><th>Decision</th><th>Approver</th>
-    </tr></thead><tbody id="archBody"></tbody></table></div>
-  </div>
-  <div class="c" style="margin-top:16px">
-    <div class="ct" style="margin-bottom:10px">Audit Trail — Last Event</div>
-    <div id="lastAudit"></div>
-  </div>
-</section>
-
-</main>
-
-<div id="toast" class="toast"></div>
-
-<script>
-// ═══════════════════════════════════════════════════════
-//  SCHEDULE DATA — 20 rows, includes near-duplicate pair
-// ═══════════════════════════════════════════════════════
-const SCHEDULE = [
-  {id:"ACT-0130",name:"Excavate Foundation Area F",disc:"Civil",asset:"F-ALL",loc:"Area F",wbs:"1.3.1.0",status:"completed",pct:100,end:"Jul 25"},
-  {id:"ACT-0140",name:"Pour Foundation Concrete Pad F-14",disc:"Civil",asset:"F-14",loc:"Area F",wbs:"1.3.1.3",status:"in_progress",pct:75,end:"Aug 28"},
-  {id:"ACT-0145",name:"Pour Foundation Concrete Pad F-12",disc:"Civil",asset:"F-12",loc:"Area F",wbs:"1.3.1.2",status:"completed",pct:100,end:"Aug 20"},
-  {id:"ACT-0150",name:"Rebar & Formwork Pad F-14",disc:"Civil",asset:"F-14",loc:"Area F",wbs:"1.3.1.4",status:"completed",pct:100,end:"Aug 15"},
-  {id:"ACT-0175",name:"Install Pipe Supports Section A",disc:"Piping",asset:"PS-A",loc:"Section A",wbs:"1.4.2.1",status:"completed",pct:100,end:"Aug 10"},
-  {id:"ACT-0180",name:"Weld Pipe Joints Section B",disc:"Piping",asset:"PL-304",loc:"Section B",wbs:"1.4.2.2",status:"in_progress",pct:90,end:"Aug 30"},
-  {id:"ACT-0187",name:"Erect Process Piping Section B",disc:"Piping",asset:"PL-304",loc:"Section B",wbs:"1.4.2.3",status:"in_progress",pct:85,end:"Sep 5"},
-  {id:"ACT-0192",name:"Install Flange Connections Section B",disc:"Piping",asset:"FL-B",loc:"Section B",wbs:"1.4.2.5",status:"in_progress",pct:60,end:"Sep 10"},
-  {id:"ACT-0195",name:"Hydrostatic Test Piping Section C",disc:"Piping",asset:"PL-400",loc:"Section C",wbs:"1.4.3.1",status:"not_started",pct:0,end:"Sep 20"},
-  {id:"ACT-0198",name:"NDT Inspection Piping Section B",disc:"Piping",asset:"PL-304",loc:"Section B",wbs:"1.4.2.4",status:"not_started",pct:0,end:"Sep 1"},
-  {id:"ACT-0200",name:"Insulate Piping Section A",disc:"Piping",asset:"PL-200",loc:"Section A",wbs:"1.4.2.6",status:"not_started",pct:0,end:"Sep 15"},
-  {id:"ACT-0210",name:"Calibrate Control Valves Unit 2",disc:"Instrumentation",asset:"V-2204",loc:"Unit 2",wbs:"1.6.2.1",status:"delayed",pct:40,end:"Aug 25"},
-  {id:"ACT-0215",name:"Install Cable Trays Unit 3",disc:"Electrical",asset:"CT-300",loc:"Unit 3",wbs:"1.5.1.1",status:"completed",pct:100,end:"Aug 18"},
-  {id:"ACT-0220",name:"Structural Steel Erection Hall B",disc:"Mechanical",asset:"SS-HB",loc:"Hall B",wbs:"1.2.3.4",status:"in_progress",pct:70,end:"Sep 1"},
-  {id:"ACT-0225",name:"Install Transformer T-1",disc:"Electrical",asset:"T-1",loc:"Substation",wbs:"1.5.2.1",status:"in_progress",pct:55,end:"Sep 8"},
-  {id:"ACT-0230",name:"Cable Pulling Unit 2",disc:"Electrical",asset:"CB-U2",loc:"Unit 2",wbs:"1.5.1.2",status:"not_started",pct:0,end:"Sep 12"},
-  {id:"ACT-0235",name:"Loop Check Instruments Unit 3",disc:"Instrumentation",asset:"IC-U3",loc:"Unit 3",wbs:"1.6.2.2",status:"not_started",pct:0,end:"Sep 18"},
-  {id:"ACT-0240",name:"Surge Tank Erection Tank Yard",disc:"Mechanical",asset:"ST-1",loc:"Tank Yard",wbs:"1.2.4.1",status:"in_progress",pct:45,end:"Sep 10"},
-  {id:"ACT-0245",name:"Paint Structural Steel Hall A",disc:"Mechanical",asset:"PS-HA",loc:"Hall A",wbs:"1.2.3.5",status:"completed",pct:100,end:"Aug 12"},
-  {id:"ACT-0250",name:"Fireproofing Equipment Skid 3",disc:"Civil",asset:"ES-3",loc:"Skid Area",wbs:"1.3.2.1",status:"not_started",pct:0,end:"Sep 22"},
-];
-
-// ═══════════════════════════════════════════════════════
-//  3 DEMO INPUTS
-// ═══════════════════════════════════════════════════════
-const DEMOS = [
-  "Spool erected at Section B, Grid Line 4-5. Flange bolts torqued to 280 Nm. Welding inspection passed. Progress 85% for this section. Minor delay due to rain on Aug 20.",
-  "Concrete poured for foundation pad F-12. Rebar inspection passed before pour. Total volume 45 cubic meters. Curing started with wet burlap覆盖.",
-  "PTW approved for hot work in Unit 3. Safety briefing completed for 12 workers. Fire watch posted. Gas testing negative.",
-];
-const DEMO_NAMES = ["Rajesh Kumar", "Amit Singh", "Vikram Mehta"];
-
-// ═══════════════════════════════════════════════════════
-//  TEXT EXTRACTION — keyword-based (simulates LLM output)
-// ═══════════════════════════════════════════════════════
-function extractEvent(text) {
-  const t = text.toLowerCase();
-  const e = {activity:null,discipline:null,asset:null,location:null,status:null,time:null,progress:null,delay:null,entities:[]};
-
-  // Discipline
-  if(/\b(piping|spool|flange|pipe|weld|hydrostatic)\b/.test(t)) e.discipline="Piping";
-  else if(/\b(concrete|foundation|rebar|excavat|pour)\b/.test(t)) e.discipline="Civil";
-  else if(/\b(valve|calibrat|instrument|loop check)\b/.test(t)) e.discipline="Instrumentation";
-  else if(/\b(cable|transformer|electrical)\b/.test(t)) e.discipline="Electrical";
-  else if(/\b(steel|tank|paint|fireproof|mechanical)\b/.test(t)) e.discipline="Mechanical";
-
-  // Activity — match terminology used in schedule
-  if(/\b(erect|spool)\b/.test(t)) e.activity="Erect Process Piping";
-  else if(/\b(concrete.*pour|pour.*concrete)\b/.test(t)) e.activity="Pour Foundation Concrete";
-  else if(/\b(rebar)\b/.test(t)) e.activity="Rebar & Formwork";
-  else if(/\b(valve.*calibrat|calibrat.*valve)/.test(t)) e.activity="Calibrate Control Valves";
-  else if(/\b(weld)\b/.test(t)) e.activity="Weld Pipe Joints";
-  else if(/\b(insulat)\b/.test(t)) e.activity="Insulate Piping";
-  else if(/\b(cable)\b/.test(t)) e.activity="Install Cable Trays";
-  else if(/\b(steel|erect)\b/.test(t)) e.activity="Structural Steel Erection";
-  else e.activity="Field Work Activity";
-
-  // Asset — look for equipment IDs like PL-304, V-2204A, F-12, etc.
-  const assetMatch = text.match(/\b([A-Z]{1,3}-?\d{2,4}[A-Z]?)\b/);
-  if(assetMatch) e.asset=assetMatch[1];
-  else if(/\bspool\b/.test(t)) e.asset="PL-304";
-  else if(/\bconcrete\b/.test(t) && /\bf-?12\b/.test(t)) e.asset="F-12";
-  else if(/\bconcrete\b/.test(t)) e.asset="Foundation";
-
-  // Location — match known industrial location patterns (not equipment IDs)
-  const locPatterns = [
-    /\b(section [a-c](?:\s*grid\s*[\d-]+)?|unit [1-3]|hall [a-b]|area [a-f]|tank yard|substation|skid [\w]+)\b/i,
-    /(?:at|in)\s+(section [a-c]|area [a-f]|unit [1-3]|hall [a-b])\b/i,
-    /grid\s+line\s+([\d-]+)/i,
-  ];
-  for(const pat of locPatterns){
-    const m=text.match(pat);
-    if(m){e.location=(m[1]||m[0]).trim().substring(0,25).replace(/\b\w/g,c=>c.toUpperCase());break;}
-  }
-
-  // Status
-  if(/\b(complete|completed|passed)\b/.test(t)) e.status="completed";
-  else if(/\b(delay|behind|late)\b/.test(t)) e.status="delayed";
-  else if(/\b(start|progress|ongoing|erected|poured)\b/.test(t)) e.status="in_progress";
-  else e.status="in_progress";
-
-  // Progress
-  const pctMatch = text.match(/(\d{1,3})\s*%/);
-  if(pctMatch) e.progress=parseInt(pctMatch[1]);
-
-  // Delay
-  const delayMatch = text.match(/delay\s+(?:due\s+to|because\s+of)\s+([^.!]+)/i);
-  if(delayMatch) e.delay=delayMatch[1].trim();
-
-  // Entities
-  const entMatch = text.match(/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)\b/g);
-  if(entMatch) e.entities=[...new Set(entMatch)].slice(0,5);
-
-  return e;
-}
-
-// ═══════════════════════════════════════════════════════
-//  MATCHING ENGINE — TF-IDF-like similarity + metadata
-// ═══════════════════════════════════════════════════════
-function tokenize(s) {
-  return s.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>1);
-}
-
-function tfidfSim(text1, text2) {
-  const a = tokenize(text1), b = tokenize(text2);
-  if(!a.length || !b.length) return 0;
-  const all = [...new Set([...a,...b])];
-  const freq = (tokens) => { const f={}; tokens.forEach(t=>{f[t]=(f[t]||0)+1}); return f; };
-  const fa=freq(a), fb=freq(b);
-  let dot=0, na=0, nb=0;
-  all.forEach(w => {
-    const va=(fa[w]||0)/a.length, vb=(fb[w]||0)/b.length;
-    dot+=va*vb; na+=va*va; nb+=vb*vb;
-  });
-  return na&&nb ? dot/(Math.sqrt(na)*Math.sqrt(nb)) : 0;
-}
-
-function metaScore(extracted, activity) {
-  let s=0;
-  // Discipline match — 20% weight
-  if(extracted.discipline && activity.disc && extracted.discipline.toLowerCase()===activity.disc.toLowerCase()) s+=20;
-  // Asset match — 20% weight, but flexible: generic extracted assets get partial credit
-  if(extracted.asset && activity.asset) {
-    const ea=extracted.asset.toLowerCase(), aa=activity.asset.toLowerCase();
-    if(ea===aa||aa.includes(ea)||ea.includes(aa)) s+=20;
-    else if(tokenize(ea).some(w=>tokenize(aa).includes(w))) s+=14;
-    else if(tokenize(ea).some(w=>tokenize(activity.name.toLowerCase()).includes(w))) s+=8;
-  }
-  // Location match — 30% weight (critical for disambiguation)
-  if(extracted.location && activity.loc) {
-    const el=extracted.location.toLowerCase(), al=activity.loc.toLowerCase();
-    if(el===al||al.includes(el)||el.includes(al)) s+=30;
-    else if(tokenize(el).some(w=>tokenize(al).includes(w))) s+=15;
-  }
-  // Activity name match — 30% weight
-  if(extracted.activity && activity.name) {
-    const sim=tfidfSim(extracted.activity, activity.name);
-    s+=Math.round(sim*30);
-  }
-  return Math.min(100, s)/100;
-}
-
-function matchSchedule(extracted) {
-  const results = SCHEDULE.map(act => {
-    // Semantic similarity — full text comparison
-    const semSim = tfidfSim(
-      `${extracted.activity} ${extracted.discipline||''} ${extracted.location||''} ${extracted.asset||''}`,
-      `${act.name} ${act.disc} ${act.loc} ${act.asset}`
-    );
-    const meta = metaScore(extracted, act);
-    // Combined: 40% semantic, 60% metadata (metadata is more reliable for industrial data)
-    const overall = Math.min(1, semSim * 0.4 + meta * 0.6);
-    return { activity: act, semSim, meta, overall };
-  });
-  results.sort((a,b) => b.overall - a.overall);
-  return results.slice(0,5);
-}
-
-function classify(score) {
-  if(score >= 0.85) return "high";
-  if(score >= 0.60) return "medium";
-  return "low";
-}
-
-// ═══════════════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════════════
-let reportId = 240;
-let processed = []; // {id,text,extracted,matches,topMatch,confidence,level,decision,approver,time}
-
-// ═══════════════════════════════════════════════════════
-//  NAVIGATION
-// ═══════════════════════════════════════════════════════
-function showView(name) {
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
-  document.getElementById('v-'+name).classList.add('on');
-  document.querySelectorAll('#nav button').forEach(b=>{
-    b.classList.toggle('on', b.dataset.v===name);
-  });
-  if(name==='review') renderReview();
-  if(name==='schedule') renderSchedule();
-  if(name==='archive') renderArchive();
-}
-document.querySelectorAll('#nav button').forEach(b=>{
-  b.addEventListener('click',()=>showView(b.dataset.v));
-});
-
-// ═══════════════════════════════════════════════════════
-//  DEMO LOADER
-// ═══════════════════════════════════════════════════════
-function loadDemo(i) {
-  document.getElementById('inp').value = DEMOS[i];
-  document.getElementById('rptName').value = DEMO_NAMES[i];
-}
-
-// ═══════════════════════════════════════════════════════
-//  VOICE (browser Speech-to-Text)
-// ═══════════════════════════════════════════════════════
-function doVoice() {
-  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)) {
-    toast('Speech recognition not supported in this browser','err'); return;
-  }
-  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
-  const r = new SR(); r.lang='en-US'; r.interimResults=false;
-  toast('🎤 Listening… speak now','info');
-  r.onresult = e => {
-    document.getElementById('inp').value = e.results[0][0].transcript;
-    toast('Voice captured!','ok');
-  };
-  r.onerror = () => toast('Voice capture failed','err');
-  r.start();
-}
-
-// ═══════════════════════════════════════════════════════
-//  SUBMIT & PROCESS
-// ═══════════════════════════════════════════════════════
-function doSubmit() {
-  const text = document.getElementById('inp').value.trim();
-  if(!text){toast('Enter a field report first','err');return;}
-  if(text.length<10){toast('Report too short — add more detail','err');return;}
-  if(text.length>5000){toast('Report exceeds 5000 characters','err');return;}
-
-  const name = document.getElementById('rptName').value.trim()||'Unknown';
-
-  // Show processing
-  document.getElementById('procBox').style.display='flex';
-  document.getElementById('extCard').style.display='none';
-  document.getElementById('matchCard').style.display='none';
-
-  setTimeout(()=>{
-    // Extract
-    const extracted = extractEvent(text);
-    // Match
-    const matches = matchSchedule(extracted);
-    const top = matches[0];
-    const level = classify(top.overall);
-    const confPct = Math.round(top.overall*100);
-
-    reportId++;
-    const rid = 'FR-'+reportId;
-    const now = new Date();
-    const timeStr = now.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-
-    const record = {
-      id:rid, text, extracted, matches, topMatch:top,
-      confidence:confPct, level, decision:
-        level==='high'?'auto_approved':
-        level==='medium'?'pending':'flagged',
-      approver: level==='high'?'System (auto)':null,
-      time:timeStr, name
-    };
-    processed.unshift(record);
-
-    // Update schedule status if approved
-    if(level==='high') {
-      const act = SCHEDULE.find(a=>a.id===top.activity.id);
-      if(act && act.status!=='completed') { act.status='in_progress'; }
-    }
-
-    // Show extraction
-    document.getElementById('procBox').style.display='none';
-    showExtraction(extracted, confPct, level, top);
-
-    toast(
-      level==='high' ? `✅ Auto-approved: ${top.activity.id} at ${confPct}%` :
-      level==='medium' ? `⚠️ Needs review: ${top.activity.id} at ${confPct}%` :
-      `❌ No strong match found (${confPct}%)`,
-      level==='high'?'ok':level==='medium'?'info':'err'
-    );
-  }, 1800);
-}
-
-// ═══════════════════════════════════════════════════════
-//  SHOW EXTRACTION RESULT
-// ═══════════════════════════════════════════════════════
-function showExtraction(extracted, confPct, level, top) {
-  const card = document.getElementById('extCard');
-  card.style.display='block';
-
-  const levelClass = level==='high'?'b-high':level==='medium'?'b-med':'b-low';
-  document.getElementById('confBadge').innerHTML=`<span class="badge ${levelClass}">${level.toUpperCase()} ${confPct}%</span>`;
-
-  const fields = [
-    ['Activity', extracted.activity||'—'],
-    ['Discipline', extracted.discipline||'—'],
-    ['Asset', extracted.asset||'—'],
-    ['Location', extracted.location||'—'],
-    ['Status', extracted.status||'—'],
-    ['Progress', extracted.progress!=null? extracted.progress+'%':'—'],
-    ['Delay', extracted.delay||'—'],
-    ['Entities', extracted.entities.length? extracted.entities.join(', '):'—'],
-  ];
-  document.getElementById('extFields').innerHTML = fields.map(([l,v])=>
-    `<div class="ei"><div class="el">${l}</div><div class="ev">${v}</div></div>`
-  ).join('');
-
-  // Confidence bar
-  const color = level==='high'?'var(--green)':level==='medium'?'var(--yellow)':'var(--red)';
-  document.getElementById('confBar').innerHTML=`
-    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-      <span style="color:var(--t2)">Confidence Score</span><span style="font-weight:700;color:${color}">${confPct}%</span>
-    </div>
-    <div style="height:8px;background:var(--s2);border-radius:4px;overflow:hidden">
-      <div style="height:100%;width:${confPct}%;background:${color};border-radius:4px;transition:width .5s"></div>
-    </div>
-    <div style="margin-top:8px;font-size:12px;color:var(--t3)">
-      ${level==='high'?'High confidence → Auto-approved':
-        level==='medium'?'Medium confidence → Sent to human review':
-        'Low confidence → Flagged as unmatched'}
-    </div>`;
-
-  // Match card
-  const mc = document.getElementById('matchCard');
-  mc.style.display='block';
-  const m = top;
-  document.getElementById('matchInfo').innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div><strong>${m.activity.id}</strong> — ${m.activity.name}</div>
-      <span class="badge ${levelClass}">${confPct}%</span>
-    </div>
-    <dl class="mcd">
-      <div><dt>Discipline</dt><dd>${m.activity.disc}</dd></div>
-      <div><dt>Asset</dt><dd>${m.activity.asset}</dd></div>
-      <div><dt>Location</dt><dd>${m.activity.loc}</dd></div>
-      <div><dt>WBS</dt><dd>${m.activity.wbs}</dd></div>
-    </dl>
-    <div class="sr"><span class="sl">Semantic Similarity</span><div class="sb"><div class="sbf" style="width:${Math.round(m.semSim*100)}%;background:var(--blue)"></div></div><span class="sv">${Math.round(m.semSim*100)}%</span></div>
-    <div class="sr"><span class="sl">Metadata Match</span><div class="sb"><div class="sbf" style="width:${Math.round(m.meta*100)}%;background:var(--blue)"></div></div><span class="sv">${Math.round(m.meta*100)}%</span></div>
-    <div class="sr"><span class="sl">Overall Confidence</span><div class="sb"><div class="sbf" style="width:${confPct}%;background:${color}"></div></div><span class="sv" style="color:${color}">${confPct}%</span></div>`;
-}
-
-// ═══════════════════════════════════════════════════════
-//  REVIEW QUEUE
-// ═══════════════════════════════════════════════════════
-function renderReview() {
-  const pending = processed.filter(r=>r.decision==='pending'||r.decision==='flagged');
-  const list = document.getElementById('reviewList');
-  const empty = document.getElementById('reviewEmpty');
-  if(!pending.length){list.innerHTML='';empty.style.display='block';return;}
-  empty.style.display='none';
-
-  list.innerHTML = pending.map((r,i)=>{
-    const levelClass = r.level==='medium'?'b-med':'b-low';
-    const isUnmatched = r.level==='low';
-    return `<div class="rc">
-      <div class="rch">
-        <div>
-          <div style="font-weight:600;font-size:16px">${r.id} — ${r.extracted.activity||'Unknown Activity'}</div>
-          <div style="font-size:12px;color:var(--t2);margin-top:2px">Reporter: ${r.name} · ${r.time}</div>
+    <!-- ===== ACTIVITY DETAIL MODAL ===== -->
+    <div id="activity-modal" class="modal-overlay hidden">
+        <div class="modal-box max-w-2xl">
+            <div class="p-5 border-b border-custom flex items-start justify-between">
+                <div>
+                    <div id="modal-badges" class="flex items-center gap-2 mb-1.5"></div>
+                    <h2 id="modal-title" class="font-rajdhani text-xl font-bold text-white"></h2>
+                    <p id="modal-meta" class="text-xs text-dim"></p>
+                </div>
+                <button onclick="closeModal()" class="text-muted hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="modal-body" class="p-5 space-y-5 overflow-y-auto max-h-[60vh]"></div>
         </div>
-        <span class="badge ${levelClass}">${r.level.toUpperCase()} ${r.confidence}%</span>
-      </div>
-      <div class="rctxt">${r.text}</div>
-      <div class="g g2" style="margin-bottom:14px">
-        <div>
-          <div class="ct">Extracted Event</div>
-          <div class="eg" style="font-size:12px">
-            <div class="ei"><div class="el">Activity</div><div class="ev">${r.extracted.activity||'—'}</div></div>
-            <div class="ei"><div class="el">Discipline</div><div class="ev">${r.extracted.discipline||'—'}</div></div>
-            <div class="ei"><div class="el">Asset</div><div class="ev">${r.extracted.asset||'—'}</div></div>
-            <div class="ei"><div class="el">Location</div><div class="ev">${r.extracted.location||'—'}</div></div>
-          </div>
-        </div>
-        <div>
-          <div class="ct">Best AI Match</div>
-          ${r.topMatch ? `<div style="padding:6px 0;font-size:13px">
-            <strong>${r.topMatch.activity.id}</strong> — ${r.topMatch.activity.name}<br>
-            <span style="color:var(--t2)">Score: ${r.confidence}% · Disc: ${r.topMatch.activity.disc} · Loc: ${r.topMatch.activity.loc}</span>
-          </div>` : '<div style="color:var(--t2);font-size:13px;padding:6px 0">No match found</div>'}
-          ${r.matches.length>1 ? `<div class="ct" style="margin-top:6px">Runner-up</div>
-          <div style="padding:6px 0;font-size:13px">
-            <strong>${r.matches[1].activity.id}</strong> — ${r.matches[1].activity.name}<br>
-            <span style="color:var(--t2)">Score: ${Math.round(r.matches[1].overall*100)}%</span>
-          </div>` : ''}
-          ${isUnmatched ? `<div style="margin-top:8px;padding:8px;background:var(--red-bg);border-radius:var(--r);font-size:12px;color:var(--red)">
-            ⚠️ ${isUnmatched?'No activity matches well — this may be a new/untracked activity':'Low confidence — manual selection recommended'}
-          </div>` : ''}
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        ${isUnmatched ? `<button class="btn btn-o btn-sm" onclick="flagUnmatched(${i})">🚩 Flag Unmatched</button>` : ''}
-        <button class="btn btn-r btn-sm" onclick="rejectMatch(${i})">✗ Reject</button>
-        <button class="btn btn-g btn-sm" onclick="approveMatch(${i})">✓ Confirm Match</button>
-      </div>
-    </div>`;
-  }).join('');
-}
+    </div>
 
-function approveMatch(idx) {
-  const pending = processed.filter(r=>r.decision==='pending'||r.decision==='flagged');
-  const r = pending[idx];
-  r.decision='approved';
-  r.approver=document.getElementById('rptName').value.trim()||'Planner';
-  // Update schedule
-  if(r.topMatch) {
-    const act = SCHEDULE.find(a=>a.id===r.topMatch.activity.id);
-    if(act && act.status!=='completed') act.status='in_progress';
-  }
-  toast(`✅ ${r.id} approved → ${r.topMatch?.activity.id||'N/A'}`,'ok');
-  renderReview();
-}
+    <!-- Application Logic -->
+    <script>
+        // ==================== CONSTANTS ====================
+        const TODAY = "2026-08-23";
+        const AMBER = "#F2A93B";
+        const GREEN = "#3FB27F";
+        const RED = "#E5484D";
+        const BLUE = "#5B9BD1";
 
-function rejectMatch(idx) {
-  const pending = processed.filter(r=>r.decision==='pending'||r.decision==='flagged');
-  const r = pending[idx];
-  r.decision='rejected';
-  r.approver=document.getElementById('rptName').value.trim()||'Planner';
-  toast(`❌ ${r.id} rejected`,'err');
-  renderReview();
-}
+        // ==================== SCHEDULE DATA ====================
+        const SCHEDULE_ACTIVITIES = [
+            { id: "ACT-0140", name: "Pour Foundation Concrete, Pad F-14", discipline: "Civil", asset: "Pad F-14", location: "Unit 2", wbs: "1.2.3.4", status: "In Progress", progress: 65 },
+            { id: "ACT-0145", name: "Pour Foundation Concrete, Pad F-12", discipline: "Civil", asset: "Pad F-12", location: "Unit 2", wbs: "1.2.3.3", status: "In Progress", progress: 40 },
+            { id: "ACT-0150", name: "Pour Foundation Concrete, Pad F-16", discipline: "Civil", asset: "Pad F-16", location: "Unit 3", wbs: "1.2.3.5", status: "Not Started", progress: 0 },
+            { id: "ACT-0160", name: "Erect Structural Steel, Rack PR-01", discipline: "Structural", asset: "Rack PR-01", location: "Pipe Rack A", wbs: "1.3.1.1", status: "Completed", progress: 100 },
+            { id: "ACT-0165", name: "Erect Structural Steel, Rack PR-02", discipline: "Structural", asset: "Rack PR-02", location: "Pipe Rack B", wbs: "1.3.1.2", status: "In Progress", progress: 78 },
+            { id: "ACT-0170", name: "Install Cable Trays, Corridor CT-1", discipline: "Electrical", asset: "CT-501", location: "Utility Corridor", wbs: "1.5.2.1", status: "In Progress", progress: 55 },
+            { id: "ACT-0175", name: "Install Cable Trays, Corridor CT-2", discipline: "Electrical", asset: "CT-502", location: "Utility Corridor", wbs: "1.5.2.2", status: "Not Started", progress: 0 },
+            { id: "ACT-0180", name: "Route Process Piping, Line 21", discipline: "Piping", asset: "Line 21", location: "Unit 1", wbs: "1.4.1.1", status: "Completed", progress: 100 },
+            { id: "ACT-0185", name: "Route Process Piping, Line 22", discipline: "Piping", asset: "Line 22", location: "Unit 1", wbs: "1.4.1.2", status: "In Progress", progress: 82 },
+            { id: "ACT-0187", name: "Erect Process Piping, Section B", discipline: "Piping", asset: "PL-304", location: "Section B", wbs: "1.4.2.1", status: "In Progress", progress: 70 },
+            { id: "ACT-0190", name: "Route Process Piping, Line 23", discipline: "Piping", asset: "Line 23", location: "Unit 2", wbs: "1.4.1.3", status: "In Progress", progress: 45 },
+            { id: "ACT-0195", name: "Erect Process Piping, Section A", discipline: "Piping", asset: "PL-302", location: "Section A", wbs: "1.4.2.0", status: "Completed", progress: 100 },
+            { id: "ACT-0198", name: "Erect Process Piping, Section C", discipline: "Piping", asset: "PL-306", location: "Section C", wbs: "1.4.2.3", status: "Not Started", progress: 0 },
+            { id: "ACT-0200", name: "Perform Welding, Line 21 Joints", discipline: "Mechanical", asset: "Line 21", location: "Unit 1", wbs: "1.4.3.1", status: "Completed", progress: 100 },
+            { id: "ACT-0205", name: "Perform Welding, Line 22 Joints", discipline: "Mechanical", asset: "Line 22", location: "Unit 1", wbs: "1.4.3.2", status: "In Progress", progress: 60 },
+            { id: "ACT-0210", name: "Calibrate Control Valves, Unit 2", discipline: "Instrumentation", asset: "CV-Unit2", location: "Unit 2", wbs: "1.6.1.1", status: "In Progress", progress: 35 },
+            { id: "ACT-0215", name: "Install Cable Trays, Corridor CT-3", discipline: "Electrical", asset: "CT-503", location: "Utility Corridor", wbs: "1.5.2.3", status: "Not Started", progress: 0 },
+            { id: "ACT-0220", name: "Perform Hydro Test, Line 21", discipline: "Pipeline", asset: "Line 21", location: "Unit 1", wbs: "1.4.4.1", status: "Completed", progress: 100 },
+            { id: "ACT-0225", name: "Perform Hydro Test, Line 22", discipline: "Pipeline", asset: "Line 22", location: "Unit 1", wbs: "1.4.4.2", status: "Not Started", progress: 0 },
+            { id: "ACT-0230", name: "Erect Scaffolding, Tank Farm T-08", discipline: "Civil", asset: "Tank T-08", location: "Tank Farm", wbs: "1.7.1.1", status: "In Progress", progress: 90 },
+            { id: "ACT-0235", name: "Install Electrical Terminations, Sub", discipline: "Electrical", asset: "SUB-101", location: "Substation Yard", wbs: "1.5.3.1", status: "In Progress", progress: 50 },
+            { id: "ACT-0240", name: "Perform Loop Check, Unit 1", discipline: "Instrumentation", asset: "LC-Unit1", location: "Unit 1", wbs: "1.6.2.1", status: "Not Started", progress: 0 },
+            { id: "ACT-0245", name: "Install Pipe Supports, Rack A", discipline: "Mechanical", asset: "PS-RackA", location: "Pipe Rack A", wbs: "1.4.5.1", status: "In Progress", progress: 72 },
+            { id: "ACT-0250", name: "Install Pipe Supports, Rack B", discipline: "Mechanical", asset: "PS-RackB", location: "Pipe Rack B", wbs: "1.4.5.2", status: "In Progress", progress: 38 },
+            { id: "ACT-0255", name: "Install Compressor C-101", discipline: "Mechanical", asset: "Compressor C-101", location: "Unit 3", wbs: "1.8.1.1", status: "In Progress", progress: 88 },
+        ];
 
-function flagUnmatched(idx) {
-  const pending = processed.filter(r=>r.decision==='pending'||r.decision==='flagged');
-  const r = pending[idx];
-  r.decision='unmatched';
-  r.approver=document.getElementById('rptName').value.trim()||'Planner';
-  toast(`🚩 ${r.id} flagged as unmatched — needs new activity`,'info');
-  renderReview();
-}
+        // ==================== STATE ====================
+        let reports = [];
+        let reportIdCounter = 2380;
+        let selectedDiscipline = "All";
+        let currentReviewFilter = "all";
+        let currentArchiveFilter = "all";
+        let rejectTarget = null;
+        let rejectReason = "";
+        let activeDisciplineChart = null;
+        let activeStatusChart = null;
 
-// ═══════════════════════════════════════════════════════
-//  SCHEDULE TABLE
-// ═══════════════════════════════════════════════════════
-function renderSchedule() {
-  const q = (document.getElementById('schedSearch')?.value||'').toLowerCase();
-  const f = document.getElementById('schedFilter')?.value||'';
-  const body = document.getElementById('schedBody');
-  const filtered = SCHEDULE.filter(a => {
-    if(f && a.disc!==f) return false;
-    if(q) {
-      const hay = `${a.id} ${a.name} ${a.disc} ${a.asset} ${a.loc} ${a.wbs}`.toLowerCase();
-      if(!hay.includes(q)) return false;
-    }
-    return true;
-  });
+        // ==================== UTILITY ====================
+        function mulberry32(a) {
+            return function () {
+                let t = a += 0x6D2B79F5;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+        }
+        const rand = mulberry32(20260823);
 
-  body.innerHTML = filtered.map(a => {
-    const stClass = a.status==='completed'?'b-done':a.status==='in_progress'?'b-prog':a.status==='delayed'?'b-delay':'b-wait';
-    const stLabel = a.status.replace(/_/g,' ');
-    const pColor = a.pct>=80?'var(--green)':a.pct>=40?'var(--yellow)':'var(--red)';
-    // Check if this activity has been matched
-    const matched = processed.some(r=>r.topMatch?.activity.id===a.id && r.decision!=='rejected');
-    return `<tr${matched?' style="background:rgba(34,197,94,.04)"':''}>
-      <td>${a.wbs}</td>
-      <td style="font-weight:600">${a.id}</td>
-      <td>${a.name}${matched?' ✅':''}</td>
-      <td>${a.disc}</td>
-      <td>${a.asset}</td>
-      <td>${a.loc}</td>
-      <td><span class="badge ${stClass}">${stLabel}</span></td>
-      <td><div class="pb"><div class="pbf" style="width:${a.pct}%;background:${pColor}"></div></div>${a.pct}%</td>
-      <td>${a.end}</td>
-    </tr>`;
-  }).join('');
-}
+        function randomFromArray(arr) {
+            return arr[Math.floor(rand() * arr.length)];
+        }
 
-// ═══════════════════════════════════════════════════════
-//  ARCHIVE
-// ═══════════════════════════════════════════════════════
-function renderArchive() {
-  const total = processed.length;
-  const approved = processed.filter(r=>r.decision==='approved'||r.decision==='auto_approved').length;
-  const rejected = processed.filter(r=>r.decision==='rejected').length;
-  const unmatched = processed.filter(r=>r.decision==='unmatched').length;
-  const pending = processed.filter(r=>r.decision==='pending'||r.decision==='flagged').length;
+        function formatDate(daysAgo) {
+            const d = new Date(TODAY);
+            d.setDate(d.getDate() - daysAgo);
+            return d.toISOString().slice(0, 10);
+        }
 
-  document.getElementById('archStats').innerHTML = [
-    ['Total Processed', total, 'blue'],
-    ['Approved', approved, 'green'],
-    ['Rejected', rejected, 'red'],
-    ['Unmatched', unmatched, 'orange'],
-  ].map(([l,v,c])=>`<div class="c"><div class="ct">${l}</div><div class="cv" style="color:var(--${c})">${v}</div></div>`).join('');
+        function formatTime(hoursAgo) {
+            const h = 8 + Math.floor(rand() * 9);
+            const m = Math.floor(rand() * 60);
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        }
 
-  // Delay chart (mock analysis)
-  const delays = [
-    {cause:'Weather',count:3,pct:35},
-    {cause:'Material Delay',count:2,pct:25},
-    {cause:'Resource Shortage',count:1,pct:15},
-    {cause:'Design Change',count:1,pct:12},
-    {cause:'Other',count:1,pct:13},
-  ];
-  document.getElementById('delayChart').innerHTML = delays.map(d=>
-    `<div class="sr"><span class="sl">${d.cause}</span><div class="sb"><div class="sbf" style="width:${d.pct}%;background:var(--orange)"></div></div><span class="sv">${d.count}</span></div>`
-  ).join('');
+        // ==================== DATA GENERATION ====================
+        function generateHistoricalReports(count) {
+            const supervisors = [
+                "R. Das", "M. Hazarika", "P. Saikia", "N. Bora", "A. Ahmed", "D. Gogoi",
+                "S. Kalita", "R. Borgohain", "K. Deka", "J. Bora", "T. Gogoi", "L. Phukan",
+                "V. Sarma", "H. Nath", "B. Talukdar", "M. Choudhury", "G. Kakati", "P. Handique"
+            ];
 
-  // Activity type distribution
-  const actTypes = {};
-  processed.forEach(r=>{
-    const d=r.extracted.discipline||'Unknown';
-    actTypes[d]=(actTypes[d]||0)+1;
-  });
-  const colors = {Piping:'var(--blue)',Civil:'var(--green)',Instrumentation:'var(--yellow)',Electrical:'var(--orange)',Mechanical:'var(--red)'};
-  document.getElementById('actChart').innerHTML = Object.entries(actTypes).map(([d,c])=>{
-    const pct = total? Math.round(c/total*100):0;
-    return `<div class="sr"><span class="sl">${d}</span><div class="sb"><div class="sbf" style="width:${pct}%;background:${colors[d]||'var(--t2)'}"></div></div><span class="sv">${c}</span></div>`;
-  }).join('') || '<div style="color:var(--t3);font-size:13px">No data yet — process some reports first</div>';
+            const fieldNotes = [
+                "Concrete pour at foundation pad {asset} completed after morning inspection. Crew held for 35 minutes while pump line was cleared. Cube samples tagged and sent to lab.",
+                "Alignment on compressor {asset} is done. Waiting on vendor to send final torque sheet before we close the installation package. No safety issues on shift.",
+                "Support shoe welding for line {asset} about three quarters done. One welder on break, resumed after lunch. Root pass quality acceptable on visual check.",
+                "Cable tray installation in {location} progressing well. Tray sections CT-{num} laid and bolted. Electricians pulling MC cable tomorrow morning.",
+                "Pipe support welding on {location} proceeding as planned. Inspector completed visual examination of 12 support welds, all passed without remarks.",
+                "Hydro test on {asset} completed successfully. Pressure held at 150% design for 4 hours. No visible leaks at any flange connection. Test documentation filed.",
+                "Scaffolding erected at {location} for overhead work access. Safety officer inspected and tagged green. Workers briefed on fall protection requirements.",
+                "Instrument calibration for loop {asset} completed. All transmitters reading within ±0.5% accuracy. Calibration certificates issued and filed.",
+                "Electrical termination for {asset} in progress. 24 of 40 terminations completed. Heat shrink applied on completed joints. Continuity testing scheduled.",
+                "Structural steel erection for {location} reached level 3. Crane operator certified and rigging plan approved. Weather clear, wind within limits.",
+                "Valve {asset} calibrated and certified. Test certificate issued. All parameters within acceptable range. Ready for installation.",
+                "Foundation reinforcement for {asset} tied and inspected. Rebar spacing verified at 200mm centers. Ready for concrete pour tomorrow morning.",
+                "Pipe rack {location} painting completed — two coats of epoxy applied per specification. Drying time noted. Color matching verified against sample.",
+                "Excavation for {asset} reached formation level. Soil bearing capacity tested at 200 kN/m². Geotechnical engineer signed off on compaction test results.",
+                "Erected spool at {location}, grid lines 4-5. Flange bolts torqued to 280 Nm. Welding inspection passed. Progress approximately 85 percent complete.",
+                "Compressor base plate grouting completed for {asset}. Level verified within 0.5mm tolerance. Grout samples sent for compressive strength testing.",
+                "Cable pulling for {location} completed. 120 meters of 3-core XLPE cable laid through tray system. No damage to insulation detected during pull.",
+                "Hot work permit approved for welding at {location}. Fire watch assigned. Gas detector calibrated and positioned at entry points.",
+                "Material delivery received at {location} — 45 cubic meters of ready-mix concrete. Slump test performed, reading 120mm within spec.",
+                "Pump P-301 base frame installation started at {location}. Anchor bolts positioned per drawing. Leveling shims placed and verified.",
+                "Tank foundation {asset} waterproofing membrane applied. Curing compound sprayed. Rain protection covers deployed ahead of evening forecast.",
+                "Instrument panel installation at {location} completed. Cable gland torqued. Junction box labeling matches P&ID references.",
+                "Substation yard {asset} equipment positioning started. Main transformer lifted onto pad. Oil filling scheduled for next week.",
+                "Welding procedure qualification test completed at {location}. Test coupon passed bend and tensile tests. WPS documentation updated.",
+                "Duct bank installation at {location} progressing — 8 of 12 sections placed. Concrete encasement pour scheduled for Thursday.",
+            ];
 
-  // History table
-  document.getElementById('archBody').innerHTML = processed.map(r=>{
-    const lc=r.level==='high'?'b-high':r.level==='medium'?'b-med':'b-low';
-    const dc=r.decision==='auto_approved'?'b-done':r.decision==='approved'?'b-done':r.decision==='rejected'?'b-delay':r.decision==='unmatched'?'b-low':'b-wait';
-    const dl=r.decision.replace(/_/g,' ');
-    return `<tr>
-      <td>${r.time}</td><td>${r.id}</td><td>${r.extracted.activity||'—'}</td>
-      <td>${r.topMatch?r.topMatch.activity.id:'—'}</td>
-      <td><span class="badge ${lc}">${r.confidence}%</span></td>
-      <td><span class="badge ${dc}">${dl}</span></td>
-      <td>${r.approver||'—'}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:24px">No events processed yet</td></tr>';
+            const activities = [...SCHEDULE_ACTIVITIES];
+            const existingReports = [];
 
-  // Last audit trail
-  const last = processed[0];
-  if(last) {
-    document.getElementById('lastAudit').innerHTML = `<div class="tl">
-      <div class="te"><div class="td"></div><div class="tm">${last.time}</div><div class="ta">Report Submitted</div><div class="tx">by ${last.name} · ${last.id}</div></div>
-      <div class="te"><div class="td"></div><div class="tm">${last.time}</div><div class="ta">AI Extraction</div><div class="tx">Activity: ${last.extracted.activity||'—'} · Disc: ${last.extracted.discipline||'—'} · Asset: ${last.extracted.asset||'—'}</div></div>
-      <div class="te"><div class="td"></div><div class="tm">${last.time}</div><div class="ta">Match Found</div><div class="tx">${last.topMatch?last.topMatch.activity.id+' — '+last.topMatch.activity.name:'No match'} · Score: ${last.confidence}%</div></div>
-      <div class="te"><div class="td" style="background:${last.level==='high'?'var(--green)':last.level==='medium'?'var(--yellow)':'var(--red)'}"></div><div class="tm">${last.time}</div><div class="ta">${last.decision.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</div><div class="tx">${last.approver?'By '+last.approver:'Awaiting decision'} · Confidence: ${last.confidence}% ${last.level==='high'?'→ Auto-approved':last.level==='medium'?'→ Needs review':'→ Unmatched'}</div></div>
-    </div>`;
-  } else {
-    document.getElementById('lastAudit').innerHTML = '<div style="color:var(--t3);font-size:13px">No audit data yet</div>';
-  }
-}
+            for (let i = 0; i < count; i++) {
+                const act = activities[Math.floor(rand() * activities.length)];
+                const sup = supervisors[Math.floor(rand() * supervisors.length)];
+                const template = fieldNotes[Math.floor(rand() * fieldNotes.length)];
+                const daysAgo = Math.floor(rand() * 14);
+                const text = template.replace('{asset}', act.asset).replace('{location}', act.location).replace('{num}', String(Math.floor(500 + rand() * 100)));
 
-// ═══════════════════════════════════════════════════════
-//  TOAST
-// ═══════════════════════════════════════════════════════
-function toast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent=msg;
-  t.className='toast toast-'+(type||'info')+' show';
-  setTimeout(()=>t.classList.remove('show'),3200);
-}
+                // Determine decision
+                const conf = Math.floor(rand() * 40) + 60;
+                let decision;
+                if (conf >= 90) decision = "CONFIRMED";
+                else if (conf >= 70) decision = "CONFIRMED";
+                else if (conf >= 50) decision = rand() > 0.3 ? "CONFIRMED" : "REJECTED";
+                else decision = "REJECTED";
 
-// ═══════════════════════════════════════════════════════
-//  KEYBOARD SHORTCUTS
-// ═══════════════════════════════════════════════════════
-document.addEventListener('keydown', e => {
-  if(e.key>='1'&&e.key<='4') showView(['capture','review','schedule','archive'][parseInt(e.key)-1]);
-});
+                existingReports.push({
+                    id: `FR-${reportIdCounter++}`,
+                    text,
+                    supervisor: sup,
+                    date: formatDate(daysAgo),
+                    time: formatTime(0),
+                    activity: act.name,
+                    activityId: act.id,
+                    location: `${act.location}`,
+                    discipline: act.discipline,
+                    progress: Math.floor(rand() * 60) + 40,
+                    confidence: conf,
+                    decision,
+                    priority: conf < 65 ? "CRITICAL" : conf < 80 ? "WATCH" : "ROUTINE",
+                    reason: decision === "REJECTED" ? randomFromArray([
+                        "Activity mismatch — report describes different location than matched schedule item",
+                        "Progress percentage inconsistent with field conditions observed",
+                        "Duplicate report — same activity already updated by supervisor P. Saikia",
+                        "Asset reference incorrect — field notes reference Line 23, not Line 22",
+                        "Timing conflict — activity dependencies not yet satisfied"
+                    ]) : null
+                });
+            }
 
-// ═══════════════════════════════════════════════════════
-//  THEME TOGGLE
-// ═══════════════════════════════════════════════════════
-function setTheme(light) {
-  document.documentElement.classList.toggle('light', light);
-  document.getElementById('themeLabel').textContent = light ? 'Dark mode' : 'Light mode';
-  localStorage.setItem('reconcileai-theme', light ? 'light' : 'dark');
-}
-function toggleTheme() {
-  setTheme(!document.documentElement.classList.contains('light'));
-}
-// Restore saved theme
-(function() {
-  const saved = localStorage.getItem('reconcileai-theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  setTheme(saved ? saved === 'light' : !prefersDark);
-})();
+            return existingReports;
+        }
 
-// Init
-renderSchedule();
-</script>
+        // ==================== AI EXTRACTION ====================
+        function extractEntities(text) {
+            const lower = text.toLowerCase();
+
+            let typeKey = null, matchedKeyword = null;
+            const tests = [
+                { key: "foundation", re: [/foundation/i, /reinforcement/i, /concrete pour/i, /excavation/i, /rebar/i, /curing/i] },
+                { key: "alignment", re: [/compressor alignment/i, /\balignment\b/i, /base plate/i, /torque/i] },
+                { key: "pipe_installation", re: [/pipe installation/i, /pipe placement/i, /spool/i, /erect.*piping/i] },
+                { key: "welding", re: [/welding/i, /\bweld\b/i, /root pass/i, /support shoe/i, /flange bolt/i] },
+                { key: "hydro_testing", re: [/hydro ?test/i, /pressure test/i] },
+                { key: "cable_tray", re: [/cable tray/i, /tray install/i, /cable pulling/i] },
+                { key: "pipe_support", re: [/pipe support/i] },
+                { key: "instrument_cal", re: [/calibration/i, /loop check/i, /calibrated/i] },
+                { key: "electrical_term", re: [/termination/i, /cable terminat/i] },
+                { key: "scaffolding", re: [/scaffold/i] },
+            ];
+
+            for (const t of tests) {
+                for (const r of t.re) {
+                    const m = text.match(r);
+                    if (m) { typeKey = t.key; matchedKeyword = m[0]; break; }
+                }
+                if (typeKey) break;
+            }
+
+            const assetM = text.match(/\b(line\s?\d+|compressor\s?c-?\d+|vessel\s?v-?\d+|pump\s?p-?\d+|tank\s?t-?\d+|cable tray\s?ct-?\d+|pad\s?f-?\d+|valve\s?v-?\d+)/i);
+            const locM = text.match(/\b(unit\s?\d+|utility corridor|substation yard|tank farm|pipe rack\s?[abc]|section\s?[abc])\b/i);
+
+            let status = null;
+            if (/\b(completed|finished|complete|done|passed)\b/i.test(text)) status = "Completed";
+            else if (/\b(started|began|mobilized)\b/i.test(text)) status = "Started";
+            else if (/\b(ongoing|in progress|proceeding|progressing)\b/i.test(text)) status = "In Progress";
+
+            const type = TYPES.find(t => t.key === typeKey);
+            let milestoneGuess = null;
+            if (type) {
+                if (status === "Completed") milestoneGuess = { name: type.milestones[3][0], pct: 100 };
+                else if (status === "Started") milestoneGuess = { name: type.milestones[0][0], pct: 25 };
+                else milestoneGuess = { name: type.milestones[1][0], pct: 50 };
+            }
+
+            const score = [typeKey, assetM, locM, status].filter(Boolean).length;
+            return {
+                typeKey,
+                activityLabel: type ? type.label : (matchedKeyword || "Unrecognized Activity"),
+                matchedKeyword,
+                asset: assetM ? assetM[0].toUpperCase() : null,
+                location: locM ? locM[0] : null,
+                status: status || "In Progress",
+                milestoneGuess,
+                confidencePct: Math.round((score / 4) * 100)
+            };
+        }
+
+        const TYPES = [
+            { key: "foundation", label: "Foundation Work", discipline: "Civil", milestones: [["Excavation Complete", 25], ["Reinforcement Complete", 50], ["Concrete Pour Complete", 75], ["Inspection Passed", 100]] },
+            { key: "alignment", label: "Compressor Alignment", discipline: "Mechanical", milestones: [["Equipment Positioned", 25], ["Base Plate Installed", 50], ["Alignment Check Complete", 75], ["Final Approval", 100]] },
+            { key: "pipe_installation", label: "Pipe Installation", discipline: "Piping", milestones: [["Material Delivered", 25], ["Pipe Placement", 50], ["Joint Preparation", 75], ["Installation Complete", 100]] },
+            { key: "welding", label: "Welding", discipline: "Mechanical", milestones: [["Fit Up Complete", 25], ["Root Pass Complete", 50], ["Final Welding Complete", 75], ["Inspection Approved", 100]] },
+            { key: "hydro_testing", label: "Hydro Testing", discipline: "Pipeline", milestones: [["Preparation", 25], ["Pressure Applied", 50], ["Leak Check", 75], ["Test Passed", 100]] },
+            { key: "cable_tray", label: "Cable Tray Installation", discipline: "Electrical", milestones: [["Tray Delivered", 25], ["Tray Installed", 50], ["Cable Pulled", 75], ["Termination Complete", 100]] },
+            { key: "pipe_support", label: "Pipe Support Welding", discipline: "Mechanical", milestones: [["Support Fabricated", 25], ["Support Positioned", 50], ["Welding Complete", 75], ["Inspection Passed", 100]] },
+            { key: "instrument_cal", label: "Instrument Calibration", discipline: "Instrumentation", milestones: [["Instrument Received", 25], ["Loop Check", 50], ["Calibration Complete", 75], ["Certification Issued", 100]] },
+            { key: "electrical_term", label: "Electrical Termination", discipline: "Electrical", milestones: [["Cable Routed", 25], ["Termination Started", 50], ["Continuity Test", 75], ["Energization Approved", 100]] },
+            { key: "scaffolding", label: "Scaffolding Erection", discipline: "Civil", milestones: [["Materials Staged", 25], ["Erection Started", 50], ["Erection Complete", 75], ["Safety Inspection Passed", 100]] },
+        ];
+
+        // ==================== MATCHING ENGINE ====================
+        function matchActivity(extracted) {
+            let best = null, bestScore = -1, reasons = [];
+
+            SCHEDULE_ACTIVITIES.forEach(a => {
+                let score = 0;
+                const r = [];
+
+                // Discipline match (30 pts)
+                if (extracted.typeKey) {
+                    const type = TYPES.find(t => t.key === extracted.typeKey);
+                    if (type && type.discipline === a.discipline) {
+                        score += 30;
+                        r.push(`Discipline "${a.discipline}" matched`);
+                    }
+                }
+
+                // Activity name similarity (35 pts)
+                if (extracted.typeKey) {
+                    const type = TYPES.find(t => t.key === extracted.typeKey);
+                    if (type) {
+                        const words = type.label.toLowerCase().split(' ');
+                        const actWords = a.name.toLowerCase().split(' ');
+                        const common = words.filter(w => actWords.some(aw => aw.includes(w) || w.includes(aw)));
+                        const similarity = common.length / Math.max(words.length, actWords.length);
+                        score += Math.round(similarity * 35);
+                        if (similarity > 0.3) r.push(`Activity name partially matched`);
+                    }
+                }
+
+                // Asset match (20 pts)
+                if (extracted.asset && a.asset.toLowerCase().includes(extracted.asset.toLowerCase().replace(/\s+/g, ''))) {
+                    score += 20;
+                    r.push(`Asset "${a.asset}" matched`);
+                }
+
+                // Location match (15 pts)
+                if (extracted.location && a.location.toLowerCase().includes(extracted.location.toLowerCase())) {
+                    score += 15;
+                    r.push(`Location "${a.location}" matched`);
+                }
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = a;
+                    reasons = r;
+                }
+            });
+
+            const confidence = bestScore >= 70 ? Math.min(90 + Math.floor(bestScore / 10), 98) :
+                bestScore >= 40 ? Math.min(60 + bestScore, 85) :
+                Math.min(20 + bestScore, 55);
+
+            return { activity: best, confidence, reasons, score: bestScore };
+        }
+
+        // ==================== REPORT PROCESSING ====================
+        function processReport(text, supervisor = "Site Supervisor", silent = false) {
+            reportIdCounter++;
+            const extracted = extractEntities(text);
+            const { activity, confidence, reasons } = matchActivity(extracted);
+
+            let state, priority;
+            if (confidence >= 90) { state = "auto"; priority = "ROUTINE"; }
+            else if (confidence >= 65) { state = "review"; priority = "WATCH"; }
+            else if (confidence >= 40) { state = "review"; priority = "CRITICAL"; }
+            else { state = "unmatched"; priority = "CRITICAL"; }
+
+            const report = {
+                id: `FR-${reportIdCounter}`,
+                text,
+                supervisor,
+                date: TODAY,
+                time: new Date().toTimeString().slice(0, 5),
+                extracted,
+                match: { activityId: activity ? activity.id : null, activityName: activity ? activity.name : null, confidence, reasons },
+                state,
+                priority,
+                progress: extracted.milestoneGuess ? extracted.milestoneGuess.pct : 50,
+                reason: null
+            };
+
+            reports.unshift(report);
+
+            if (!silent) {
+                renderExtractionResult(report);
+                renderAll();
+            }
+            return report;
+        }
+
+        // ==================== UI RENDERING ====================
+        function setSample(n) {
+            const s = [
+                "Spool erected at Section B, Grid Line 4-5. Flange bolts torqued to 280 Nm. Welding inspection passed. Progress 85%.",
+                "Concrete poured for foundation pad F-12. Rebar inspection passed. Volume 45 cubic meters. Curing started with wet burlap.",
+                "PTW approved for hot work in Unit 3. Safety briefing completed. Gas testing done. All clear to proceed with welding on support brackets."
+            ];
+            document.getElementById('report-input-text').value = s[n - 1];
+        }
+
+        function handleAnalyzeReport() {
+            const text = document.getElementById('report-input-text').value.trim();
+            if (!text) {
+                showToast("Please enter a field report first", "warning");
+                return;
+            }
+            processReport(text);
+        }
+
+        function renderExtractionResult(r) {
+            const container = document.getElementById('latest-report-results');
+            container.classList.remove('hidden');
+            const stateColors = {
+                auto: 'bg-green-500/15 text-greenAccent border-green-500/20',
+                review: 'bg-amber-500/15 text-amberAccent border-amber-500/20',
+                unmatched: 'bg-red-500/15 text-redAccent border-red-500/20'
+            };
+            const stateLabels = {
+                auto: 'Auto-Updated',
+                review: 'Sent to Review',
+                unmatched: 'No Match Found'
+            };
+
+            container.innerHTML = `
+                <div class="card rounded-xl p-5">
+                    <div class="flex items-center justify-between mb-4 border-b border-custom pb-3">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="radio" class="text-amberAccent w-4 h-4"></i>
+                            <h3 class="font-rajdhani font-semibold text-lg text-white">AI Extraction Results</h3>
+                        </div>
+                        <span class="text-[10px] font-mono px-2.5 py-1 rounded-full border ${stateColors[r.state]}">${stateLabels[r.state]}</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div><div class="text-[10px] text-muted uppercase">Activity</div><div class="text-sm font-mono">${r.extracted.activityLabel}</div></div>
+                        <div><div class="text-[10px] text-muted uppercase">Asset</div><div class="text-sm font-mono">${r.extracted.asset || '—'}</div></div>
+                        <div><div class="text-[10px] text-muted uppercase">Location</div><div class="text-sm font-mono">${r.extracted.location || '—'}</div></div>
+                        <div><div class="text-[10px] text-muted uppercase">Status</div><div class="text-sm font-mono">${r.extracted.status}</div></div>
+                    </div>
+
+                    <div class="border-t border-custom pt-3 flex items-center justify-between flex-wrap gap-4">
+                        <div>
+                            <div class="text-[10px] text-muted uppercase mb-1">Target Activity</div>
+                            <div class="text-sm text-white font-mono">${r.match.activityId ? `${r.match.activityId} — ${r.match.activityName}` : 'No confident match found'}</div>
+                            <div class="text-xs text-dim mt-1">${r.match.reasons.join(' · ') || 'No matching criteria identified'}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-mono font-bold ${r.match.confidence >= 90 ? 'text-greenAccent' : r.match.confidence >= 65 ? 'text-amberAccent' : 'text-redAccent'}">${r.match.confidence}%</div>
+                            <div class="text-[10px] uppercase text-muted">Match Confidence</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        // ==================== REVIEW QUEUE ====================
+        function renderReviewQueue() {
+            const queue = reports.filter(r => r.state === 'review');
+            document.getElementById('review-badge').innerText = queue.length;
+
+            // Stats
+            const awaitingCount = queue.length;
+            const criticalCount = queue.filter(r => r.priority === 'CRITICAL').length;
+            const avgConf = queue.length > 0 ? Math.round(queue.reduce((s, r) => s + r.match.confidence, 0) / queue.length) : 0;
+
+            document.getElementById('review-stats').innerHTML = `
+                <div class="card rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider text-muted mb-1">Awaiting Review</div>
+                    <div class="font-mono text-2xl font-bold text-white">${String(awaitingCount).padStart(2, '0')}</div>
+                    <div class="text-[10px] text-muted">reports</div>
+                </div>
+                <div class="card rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider text-muted mb-1">Critical Attention</div>
+                    <div class="font-mono text-2xl font-bold text-redAccent">${String(criticalCount).padStart(2, '0')}</div>
+                    <div class="text-[10px] text-muted">needs action</div>
+                </div>
+                <div class="card rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider text-muted mb-1">Avg. Confidence</div>
+                    <div class="font-mono text-2xl font-bold text-amberAccent">${avgConf}%</div>
+                    <div class="text-[10px] text-muted">this shift</div>
+                </div>
+            `;
+
+            // Filter
+            const filtered = currentReviewFilter === 'all' ? queue :
+                queue.filter(r => r.priority.toLowerCase() === currentReviewFilter);
+
+            document.getElementById('review-count-label').textContent = `${filtered.length} VISIBLE / ${queue.length} TOTAL`;
+
+            // Update filter buttons
+            ['all', 'critical', 'watch', 'routine'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (btn) {
+                    btn.className = currentReviewFilter === f
+                        ? "text-xs px-2.5 py-1 rounded border border-custom bg-white/10 text-white"
+                        : "text-xs px-2.5 py-1 rounded border border-custom text-dim";
+                }
+            });
+
+            const list = document.getElementById('review-list');
+            if (filtered.length === 0) {
+                list.innerHTML = `<div class="p-8 text-center text-dim border border-custom rounded-xl card">Review queue is clear. No manual interventions needed.</div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            list.innerHTML = filtered.map(r => {
+                const priorityColor = r.priority === 'CRITICAL' ? 'bg-red-500/15 text-redAccent border-red-500/25' :
+                    r.priority === 'WATCH' ? 'bg-amber-500/15 text-amberAccent border-amber-500/25' :
+                    'bg-blue-500/15 text-blueAccent border-blue-500/25';
+                const confColor = r.match.confidence >= 90 ? 'text-greenAccent' : r.match.confidence >= 65 ? 'text-amberAccent' : 'text-redAccent';
+
+                return `
+                    <div class="card rounded-xl p-5">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <span class="font-mono text-amberAccent text-xs">${r.id}</span>
+                                <span class="text-xs text-dim">${r.supervisor} · ${r.date} · ${r.time || '09:42'}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-mono px-2 py-0.5 rounded border ${priorityColor}">● ${r.priority}</span>
+                            </div>
+                        </div>
+
+                        <!-- Content Grid -->
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <!-- Left: Field Note -->
+                            <div>
+                                <div class="text-[10px] uppercase tracking-wider text-muted mb-1.5 flex items-center gap-1.5">
+                                    <i data-lucide="file-text" class="w-3 h-3"></i> Field Note · ${r.supervisor}
+                                </div>
+                                <div class="card rounded-lg p-3 text-sm text-dim italic">"${r.text}"</div>
+                                <div class="flex gap-1.5 mt-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-input border border-custom text-dim">${r.discipline || r.extracted.activityLabel}</span>
+                                </div>
+                            </div>
+
+                            <!-- Right: AI Readout -->
+                            <div>
+                                <div class="text-[10px] uppercase tracking-wider text-muted mb-1.5 flex items-center justify-between">
+                                    <span class="flex items-center gap-1.5"><i data-lucide="sparkles" class="w-3 h-3 text-amberAccent"></i> AI Structured Readout</span>
+                                    <span class="font-mono ${confColor}">${r.match.confidence}% confidence</span>
+                                </div>
+                                <div class="card rounded-lg p-3">
+                                    <div class="font-semibold text-white text-sm mb-2">${r.match.activityName || r.extracted.activityLabel}</div>
+                                    <div class="grid grid-cols-2 gap-2 text-[10px]">
+                                        <div><span class="text-muted uppercase">Completion</span><div class="font-mono text-white">${r.progress}%</div></div>
+                                        <div><span class="text-muted uppercase">Target</span><div class="font-mono text-white">${r.match.activityId || '—'}</div></div>
+                                    </div>
+                                    ${r.match.confidence < 80 ? `<div class="mt-2 p-2 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] text-amberAccent">CONFIDENCE BELOW THRESHOLD — Review recommended</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Bar -->
+                        <div class="mt-4 pt-3 border-t border-custom flex items-center justify-between">
+                            <div class="flex items-center gap-1.5 text-[10px] text-muted">
+                                <i data-lucide="shield" class="w-3 h-3"></i>
+                                Review the extraction before it touches the baseline.
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openRejectModal('${r.id}')" class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded border border-red-500/30 text-redAccent hover:bg-red-500/10 transition-colors">
+                                    <i data-lucide="x" class="w-3 h-3"></i> Reject
+                                </button>
+                                <button onclick="approveReview('${r.id}')" class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-greenAccent text-black font-semibold hover:opacity-90 transition-opacity">
+                                    <i data-lucide="check" class="w-3 h-3"></i> Confirm update
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function filterReview(filter) {
+            currentReviewFilter = filter;
+            renderReviewQueue();
+        }
+
+        function approveReview(id) {
+            const r = reports.find(x => x.id === id);
+            if (!r) return;
+            r.state = "auto";
+            r.decision = "CONFIRMED";
+            showToast(`✅ ${r.id} approved → ${r.match.activityId}`, "success");
+            renderAll();
+        }
+
+        // ==================== REJECT FLOW ====================
+        function openRejectModal(reportId) {
+            rejectTarget = reports.find(r => r.id === reportId);
+            if (!rejectTarget) return;
+            rejectReason = "";
+            document.getElementById('reject-reason-input').value = "";
+            const confirmBtn = document.getElementById('reject-confirm-btn');
+            confirmBtn.disabled = true;
+            confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('reject-modal').classList.remove('hidden');
+            lucide.createIcons();
+
+            // Listen for input
+            document.getElementById('reject-reason-input').oninput = function () {
+                rejectReason = this.value.trim();
+                if (rejectReason.length >= 10) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    confirmBtn.disabled = true;
+                    confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            };
+        }
+
+        function closeRejectModal() {
+            document.getElementById('reject-modal').classList.add('hidden');
+            rejectTarget = null;
+            rejectReason = "";
+        }
+
+        function confirmReject() {
+            if (!rejectReason || rejectReason.length < 10) return;
+            document.getElementById('reject-modal').classList.add('hidden');
+
+            // Show confirmation modal
+            document.getElementById('confirm-report-id').textContent = rejectTarget.id;
+            document.getElementById('confirm-reason-display').textContent = rejectReason;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+        }
+
+        function executeReject() {
+            if (!rejectTarget) return;
+            rejectTarget.state = "unmatched";
+            rejectTarget.decision = "REJECTED";
+            rejectTarget.reason = rejectReason;
+            closeConfirmModal();
+            showToast(`❌ ${rejectTarget.id} returned — ${rejectTarget.match.activityId}`, "error");
+            rejectTarget = null;
+            rejectReason = "";
+            renderAll();
+        }
+
+        // ==================== SCHEDULE ====================
+        function renderSchedule() {
+            const disciplines = ["All", ...new Set(SCHEDULE_ACTIVITIES.map(a => a.discipline))];
+            document.getElementById('discipline-filters').innerHTML = disciplines.map(d =>
+                `<button onclick="filterSchedule('${d}')" class="text-xs px-2.5 py-1.5 rounded-md border border-custom ${selectedDiscipline === d ? 'bg-white/10 text-white' : 'text-dim'}">${d}</button>`
+            ).join('');
+
+            const filtered = selectedDiscipline === "All" ? SCHEDULE_ACTIVITIES : SCHEDULE_ACTIVITIES.filter(a => a.discipline === selectedDiscipline);
+            document.getElementById('schedule-subtitle').innerText = `${filtered.length} activities · Master control log`;
+
+            document.getElementById('schedule-tbody').innerHTML = filtered.map(a => {
+                const badgeColor = a.status === 'Completed' ? 'text-greenAccent bg-green-500/10' :
+                    a.status === 'Delayed' || a.progress < 30 ? 'text-redAccent bg-red-500/10' : 'text-amberAccent bg-amber-500/10';
+                return `
+                    <tr onclick="openModal('${a.id}')" class="card-hover cursor-pointer transition-colors">
+                        <td class="px-4 py-2.5 font-mono text-amberAccent text-xs">${a.id}</td>
+                        <td class="px-4 py-2.5 text-white font-medium text-xs">${a.name}</td>
+                        <td class="px-4 py-2.5 text-dim text-xs">${a.asset}</td>
+                        <td class="px-4 py-2.5 text-dim text-xs">${a.location}</td>
+                        <td class="px-4 py-2.5">
+                            <div class="flex items-center gap-2">
+                                <div class="h-1.5 flex-1 bg-[var(--border-primary)] rounded-full overflow-hidden">
+                                    <div class="h-full ${a.progress >= 100 ? 'bg-greenAccent' : 'bg-amberAccent'}" style="width: ${a.progress}%"></div>
+                                </div>
+                                <span class="font-mono text-[10px] text-dim">${a.progress}%</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-mono ${badgeColor}">${a.status}</span></td>
+                        <td class="px-4 py-2.5 font-mono text-[10px] text-dim">${a.wbs}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterSchedule(d) {
+            selectedDiscipline = d;
+            renderSchedule();
+        }
+
+        // ==================== ARCHIVE ====================
+        function renderArchive() {
+            const allReports = [...reports].sort((a, b) => b.date.localeCompare(a.date));
+            const searchQuery = (document.getElementById('archive-search')?.value || '').toLowerCase();
+
+            const filtered = allReports.filter(r => {
+                if (searchQuery && !r.text.toLowerCase().includes(searchQuery) && !(r.activity || '').toLowerCase().includes(searchQuery) && !r.supervisor.toLowerCase().includes(searchQuery)) return false;
+                if (currentArchiveFilter === 'pending') return r.state === 'review';
+                if (currentArchiveFilter === 'confirmed') return r.decision === 'CONFIRMED';
+                if (currentArchiveFilter === 'rejected') return r.decision === 'REJECTED' || r.state === 'unmatched';
+                return true;
+            });
+
+            // Stats
+            const total = allReports.length;
+            const confirmed = allReports.filter(r => r.decision === 'CONFIRMED' || r.state === 'auto').length;
+            const rejected = allReports.filter(r => r.decision === 'REJECTED' || r.state === 'unmatched').length;
+            const coverage = Math.round((confirmed / Math.max(total, 1)) * 100);
+
+            document.getElementById('archive-stats').innerHTML = `
+                <div class="card rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider text-muted mb-1">Processed Reports</div>
+                    <div class="font-mono text-2xl font-bold text-white">${String(total).padStart(2, '0')}</div>
+                    <div class="text-[10px] text-muted">this project</div>
+                </div>
+                <div class="card rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider text-muted mb-1">Confirmed</div>
+                    <div class="font-mono text-2xl font-bold text-greenAccent">${String(confirmed).padStart(2, '0')}</div>
+                    <div class="text-[10px] text-muted">schedule signals</div>
+                </div>
+                <div class="card rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider text-muted mb-1">Returned</div>
+                    <div class="font-mono text-2xl font-bold text-redAccent">${String(rejected).padStart(2, '0')}</div>
+                    <div class="text-[10px] text-muted">field follow-ups</div>
+                </div>
+                <div class="card rounded-xl p-4">
+                    <div class="text-[10px] uppercase tracking-wider text-muted mb-1">Schedule Coverage</div>
+                    <div class="font-mono text-2xl font-bold text-amberAccent">${coverage}%</div>
+                    <div class="text-[10px] text-muted">activities linked</div>
+                </div>
+            `;
+
+            document.getElementById('archive-tbody').innerHTML = filtered.slice(0, 50).map(r => {
+                const decColor = r.decision === 'CONFIRMED' || r.state === 'auto' ? 'text-greenAccent bg-green-500/10 border-green-500/20' :
+                    r.decision === 'REJECTED' || r.state === 'unmatched' ? 'text-redAccent bg-red-500/10 border-red-500/20' :
+                    'text-amberAccent bg-amber-500/10 border-amber-500/20';
+                const decLabel = r.decision || (r.state === 'auto' ? 'CONFIRMED' : r.state === 'review' ? 'PENDING' : 'REJECTED');
+                return `
+                    <tr class="card-hover cursor-pointer transition-colors">
+                        <td class="px-4 py-3">
+                            <div class="font-mono text-amberAccent text-xs">${r.id}</div>
+                            <div class="text-[10px] text-dim">${r.date}</div>
+                        </td>
+                        <td class="px-4 py-3 text-xs font-medium text-white">${r.activity || r.extracted.activityLabel}</td>
+                        <td class="px-4 py-3 text-xs text-dim">${r.location}</td>
+                        <td class="px-4 py-3 text-xs text-dim">${r.supervisor}</td>
+                        <td class="px-4 py-3 text-xs font-mono text-dim">${r.progress}%</td>
+                        <td class="px-4 py-3"><span class="text-[10px] font-mono px-2 py-0.5 rounded border ${decColor}">● ${decLabel}</span></td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function filterArchive(f) {
+            currentArchiveFilter = f;
+            document.querySelectorAll('.filter-archive-btn').forEach(btn => {
+                const isActive = btn.textContent.trim().toLowerCase() === f;
+                btn.className = isActive
+                    ? "filter-archive-btn text-[10px] px-2 py-1 rounded border border-custom bg-white/10 text-white"
+                    : "filter-archive-btn text-[10px] px-2 py-1 rounded border border-custom text-dim";
+            });
+            renderArchive();
+        }
+
+        // ==================== ACTIVITY MODAL ====================
+        function openModal(actId) {
+            const a = SCHEDULE_ACTIVITIES.find(x => x.id === actId);
+            if (!a) return;
+            document.getElementById('modal-title').innerText = a.name;
+            document.getElementById('modal-meta').innerText = `${a.asset} · ${a.location} · WBS: ${a.wbs}`;
+            document.getElementById('modal-badges').innerHTML = `
+                <span class="font-mono text-amberAccent text-xs">${a.id}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amberAccent">${a.status}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-[var(--border-primary)] text-dim">${a.discipline}</span>
+            `;
+
+            const relatedReports = reports.filter(r => r.match.activityId === a.id);
+
+            document.getElementById('modal-body').innerHTML = `
+                <div>
+                    <div class="text-[10px] uppercase tracking-wider text-muted mb-2">Progress</div>
+                    <div class="flex items-center gap-3">
+                        <div class="h-2 flex-1 bg-[var(--border-primary)] rounded-full overflow-hidden">
+                            <div class="h-full ${a.progress >= 100 ? 'bg-greenAccent' : 'bg-amberAccent'}" style="width: ${a.progress}%"></div>
+                        </div>
+                        <span class="font-mono text-sm text-white">${a.progress}%</span>
+                    </div>
+                </div>
+                ${relatedReports.length > 0 ? `
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-muted mb-2">Linked Reports (${relatedReports.length})</div>
+                        <div class="space-y-2">
+                            ${relatedReports.slice(0, 5).map(r => `
+                                <div class="p-2 rounded-lg bg-input border border-custom text-xs">
+                                    <span class="font-mono text-amberAccent">${r.id}</span>
+                                    <span class="text-dim ml-2">${r.supervisor}</span>
+                                    <span class="text-dim ml-2">${r.date}</span>
+                                    <span class="ml-2 ${r.state === 'auto' ? 'text-greenAccent' : 'text-amberAccent'}">${r.state}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : '<div class="text-xs text-dim">No field reports linked to this activity yet.</div>'}
+            `;
+            document.getElementById('activity-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            document.getElementById('activity-modal').classList.add('hidden');
+        }
+
+        // ==================== NAVIGATION ====================
+        function navigate(view) {
+            const views = ['capture', 'review', 'schedule', 'archive'];
+            views.forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                document.getElementById(`nav-${v}`).classList.remove('bg-amberAccent/10', 'text-amberAccent', 'bg-white/5');
+                document.getElementById(`nav-${v}`).classList.add('text-[#8993A3]');
+            });
+            document.getElementById(`view-${view}`).classList.remove('hidden');
+            document.getElementById(`nav-${view}`).classList.add('bg-amberAccent/10', 'text-amberAccent');
+            document.getElementById(`nav-${view}`).classList.remove('text-[#8993A3]');
+
+            // Update page labels
+            const labels = {
+                capture: ['CAPTURE REPORT', 'SUBMIT NEW ENTRY'],
+                review: ['STRUCTURED UPDATES', 'PENDING ACTION'],
+                schedule: ['SCHEDULE CONTROL', 'MASTER LOG'],
+                archive: ['HISTORICAL RECORD', 'DULIAJAN DEVELOPMENT']
+            };
+            document.getElementById('page-label').textContent = labels[view][0];
+            document.getElementById('page-sublabel').textContent = labels[view][1];
+
+            if (view === 'schedule') renderSchedule();
+            if (view === 'review') renderReviewQueue();
+            if (view === 'archive') renderArchive();
+        }
+
+        // ==================== THEME ====================
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+            document.body.classList.toggle('light');
+            const isDark = document.body.classList.contains('dark');
+            document.getElementById('theme-icon').setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        // ==================== TOAST ====================
+        function showToast(msg, type = "info") {
+            const colors = {
+                success: 'bg-greenAccent/90 text-black',
+                error: 'bg-redAccent/90 text-white',
+                warning: 'bg-amberAccent/90 text-black',
+                info: 'bg-blueAccent/90 text-white'
+            };
+            const toast = document.createElement('div');
+            toast.className = `toast ${colors[type] || colors.info}`;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // ==================== RENDER ALL ====================
+        function renderAll() {
+            renderSchedule();
+            renderReviewQueue();
+            renderArchive();
+        }
+
+        // ==================== INIT ====================
+        window.addEventListener('DOMContentLoaded', () => {
+            // Load theme
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.body.classList.remove('dark');
+                document.body.classList.add('light');
+            }
+
+            // Generate historical reports (240 reports)
+            const historical = generateHistoricalReports(240);
+            reports = historical;
+
+            // Add 2-3 demo items to review queue
+            const demo1 = processReport(
+                "Spool erected at Section B, Grid Line 4-5. Flange bolts torqued to 280 Nm. Welding inspection passed. Progress 85%.",
+                "R. Das", true
+            );
+            demo1.date = TODAY;
+            demo1.time = "09:42";
+            demo1.priority = "WATCH";
+
+            const demo2 = processReport(
+                "Concrete poured for foundation pad F-12. Rebar inspection passed. Volume 45 cubic meters. Curing started with wet burlap.",
+                "M. Hazarika", true
+            );
+            demo2.date = TODAY;
+            demo2.time = "08:17";
+            demo2.priority = "ROUTINE";
+
+            const demo3 = processReport(
+                "PTW approved for hot work in Unit 3. Safety briefing completed. Gas testing done. All clear to proceed with welding on support brackets.",
+                "P. Saikia", true
+            );
+            demo3.date = TODAY;
+            demo3.time = "07:55";
+            demo3.priority = "CRITICAL";
+
+            renderAll();
+            navigate('capture');
+            lucide.createIcons();
+        });
+    </script>
 </body>
+
 </html>
